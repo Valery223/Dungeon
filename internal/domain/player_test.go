@@ -67,6 +67,8 @@ func assertActionResult(t *testing.T, expectedStatus PlayerStatus, expectedRes A
 //   - Disqual - если пытается войти в данж, не зарегистрировавшись
 //   - Disqual - если получаем событие о том, что не может продолжать соревнование
 //   - Fail - если получает событие, когда время вышло
+//   - Fail - если получает смертельный урон(генерируем событие смерти)
+//   - New - если получает урон, но не умирает
 //   - New - при всех остальных событиях, так же  отдаем событие  imposible move
 func TestPlayer_StateNew(t *testing.T) {
 
@@ -94,10 +96,15 @@ func TestPlayer_StateNew(t *testing.T) {
 				}},
 		},
 		{
-			name:                 "Не может продолжать соревнование",
-			inEvent:              IncomingEvent{ID: EventCannotContinue, TimeSec: 100, Extra: "test"},
-			expectedStatus:       StatusDisqual,
-			expectedActionResult: ActionResult{IsAccepted: true},
+			name:           "Не может продолжать соревнование",
+			inEvent:        IncomingEvent{ID: EventCannotContinue, TimeSec: 100, Extra: "test"},
+			expectedStatus: StatusDisqual,
+			expectedActionResult: ActionResult{
+				IsAccepted: true,
+				OutgoingEvent: &OutgoingEvent{
+					ID:              EventOutDisqualified,
+					IncomingEventID: EventCannotContinue,
+				}},
 		},
 		{
 			name: "Время вышло",
@@ -123,12 +130,43 @@ func TestPlayer_StateNew(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Получает урон, но не умирает",
+			inEvent: IncomingEvent{
+				ID:      EventReceiveDamage,
+				TimeSec: 100,
+				Value:   10,
+				Extra:   "10",
+			},
+			expectedStatus: StatusNew,
+			expectedActionResult: ActionResult{
+				IsAccepted: true,
+			},
+		},
+		{
+			name: "Получает смертельный урон",
+			inEvent: IncomingEvent{
+				ID:      EventReceiveDamage,
+				TimeSec: 100,
+				Value:   100,
+				Extra:   "100",
+			},
+			expectedStatus: StatusFail,
+			expectedActionResult: ActionResult{
+				IsAccepted: true,
+				OutgoingEvent: &OutgoingEvent{
+					ID:              EventOutDead,
+					IncomingEventID: EventReceiveDamage,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			player := &Player{ID: 1, Status: StatusNew}
+			// player := &Player{ID: 1, Status: StatusNew}
 			cfg := defaultCfg()
+			player := NewPlayer(1, cfg, 100)
 			result := player.ApplyEvent(tt.inEvent, cfg)
 
 			assertActionResult(t, tt.expectedStatus, tt.expectedActionResult, player, result)
@@ -142,6 +180,8 @@ func TestPlayer_StateNew(t *testing.T) {
 //   - Disqual - если приходит  событие о том, что не может продолжать соревнование
 //   - Disqual - если игрок пытается войти в данж до его открытия
 //   - Fail - если получает событие, когда время вышло
+//   - Fail - если получает смертельный урон(генерируем событие смерти)
+//   - Registered - если получает урон, но не умирает
 //   - Registered - при всех остальных событиях, так же  отдаем событие  imposible move
 func TestPlayer_StateRegistered(t *testing.T) {
 
@@ -167,8 +207,13 @@ func TestPlayer_StateRegistered(t *testing.T) {
 				TimeSec: 100,
 				Extra:   "test",
 			},
-			expectedStatus:       StatusDisqual,
-			expectedActionResult: ActionResult{IsAccepted: true},
+			expectedStatus: StatusDisqual,
+			expectedActionResult: ActionResult{
+				IsAccepted: true,
+				OutgoingEvent: &OutgoingEvent{
+					ID:              EventOutDisqualified,
+					IncomingEventID: EventCannotContinue,
+				}},
 		},
 		{
 			name: "Пытается войти в данж до открытия",
@@ -208,11 +253,39 @@ func TestPlayer_StateRegistered(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Получает урон, но не умирает",
+			inEvent: IncomingEvent{
+				ID:      EventReceiveDamage,
+				TimeSec: 100,
+				Value:   50,
+				Extra:   "50",
+			},
+			expectedStatus:       StatusRegistered,
+			expectedActionResult: ActionResult{IsAccepted: true},
+		},
+		{
+			name: "Получает смертельный урон",
+			inEvent: IncomingEvent{
+				ID:      EventReceiveDamage,
+				TimeSec: 100,
+				Value:   100,
+				Extra:   "100",
+			},
+			expectedStatus: StatusFail,
+			expectedActionResult: ActionResult{
+				IsAccepted: true,
+				OutgoingEvent: &OutgoingEvent{
+					ID:              EventOutDead,
+					IncomingEventID: EventReceiveDamage,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			player := &Player{ID: 1, Status: StatusRegistered}
+			player := &Player{ID: 1, Status: StatusRegistered, HP: 100}
 			cfg := defaultCfg()
 			result := player.ApplyEvent(tt.inEvent, cfg)
 
@@ -332,9 +405,15 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 				TimeSec: 100,
 				Extra:   "test",
 			},
-			currentFloor:         1,
-			expectedStatus:       StatusDisqual,
-			expectedActionResult: ActionResult{IsAccepted: true},
+			currentFloor:   1,
+			expectedStatus: StatusDisqual,
+			expectedActionResult: ActionResult{
+				IsAccepted: true,
+				OutgoingEvent: &OutgoingEvent{
+					ID:              EventOutDisqualified,
+					IncomingEventID: EventCannotContinue,
+				},
+			},
 		},
 		{
 			name: "Время вышло",

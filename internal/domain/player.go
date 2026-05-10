@@ -288,7 +288,8 @@ func (p *Player) cannotContinue(e IncomingEvent, cfg *DungeonConfig) ActionResul
 	}
 	p.Status = StatusDisqual
 	return ActionResult{
-		IsAccepted: true,
+		IsAccepted:    true,
+		OutgoingEvent: p.buildEvent(e, EventOutDisqualified, e.Extra),
 	}
 }
 
@@ -311,16 +312,17 @@ func (p *Player) receiveDamage(e IncomingEvent, cfg *DungeonConfig) ActionResult
 	if p.HP <= 0 {
 		p.HP = 0
 
-		p.Status = StatusFail
-
-		// time
-		if p.CurrentFloor < cfg.Floors {
-			// Если игрок умер на обычном этаже, то фиксируем время, проведенное на нем
-			p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
-		} else if p.CurrentFloor == cfg.Floors+1 {
-			// Если игрок умер в комнате с боссом, то фиксируем время, проведенное на ней
-			p.BossKillOrExitTime = e.TimeSec - p.BossEnterTime
+		if p.Status == StatusInDungeon {
+			// time
+			if p.CurrentFloor < cfg.Floors {
+				// Если игрок умер на обычном этаже, то фиксируем время, проведенное на нем
+				p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
+			} else if p.CurrentFloor == cfg.Floors+1 {
+				// Если игрок умер в комнате с боссом, то фиксируем время, проведенное на ней
+				p.BossKillOrExitTime = e.TimeSec - p.BossEnterTime
+			}
 		}
+		p.Status = StatusFail
 		p.LeaveDungeonTime = e.TimeSec
 		return p.dead(e)
 	}
