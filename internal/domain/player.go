@@ -47,6 +47,23 @@ type Player struct {
 	BossKillOrExitTime int
 }
 
+// NewPlayer - создние  доменной сущности
+func NewPlayer(id int, cfg *DungeonConfig, hp int) *Player {
+	p := &Player{
+		ID:                id,
+		Status:            StatusNew,
+		HP:                hp,
+		MonstersLeft:      make([]int, cfg.Floors+2),
+		FloorCleared:      make([]bool, cfg.Floors+2),
+		TimeSpentOnFloors: make([]int, cfg.Floors+2),
+	}
+
+	for i := 1; i <= cfg.Floors; i++ {
+		p.MonstersLeft[i] = cfg.Monsters
+	}
+	return p
+}
+
 // ApplyEvent применяет событие "e" к состоянию игрока
 // Использует настройки "cfg" для проверки ограничений (количество этажей, время закрытия)
 // Возвращает ActionResult с решением о том, как "автомат" выполнил событие
@@ -56,24 +73,12 @@ func (p *Player) ApplyEvent(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 		return ActionResult{IsAccepted: false}
 	}
 
-	// Если данж закрылся, то игрок провалился(хотя не должно сюда попасть, так как мы не должны принимать события после закрытия данжа)
-	// Должно раньше обработаться, но на всякий случай
+	// Если игрок пытается что-то сделать после закрытия данжа, то  мы его принудительно закрываем
 	if e.TimeSec >= cfg.CloseAtSec {
-		if p.Status == StatusInDungeon {
-			// Если игрок был в данже, то фиксируем время, проведенное на последнем этаже
-			if p.CurrentFloor < cfg.Floors && !p.FloorCleared[p.CurrentFloor] {
-				// Если игрок был на обычном этаже, то фиксируем время, проведенное на нем
-				p.TimeSpentOnFloors[p.CurrentFloor] += cfg.CloseAtSec - p.CurrentFloorEnterTime
-			} else if p.CurrentFloor == cfg.Floors+1 && !p.BossDead {
-				// Если игрок был в комнате с боссом, то фиксируем время, проведенное на ней
-				p.BossKillOrExitTime = cfg.CloseAtSec - p.BossEnterTime
-			}
-			p.LeaveDungeonTime = cfg.CloseAtSec
-		}
-		p.Status = StatusFail
-
+		p.ForceClose(cfg.CloseAtSec, cfg)
 		return ActionResult{IsAccepted: false}
 	}
+
 	switch e.ID {
 	case EventRegister:
 		return p.register(e)
@@ -100,6 +105,21 @@ func (p *Player) ApplyEvent(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	default:
 		return p.impossibleMove(e)
 	}
+}
+
+// ForceClose принудительно закрывает данж для игрока, переводя его в статус Fail, если он еще не завершил испытание
+func (p *Player) ForceClose(closeTimeSec int, cfg *DungeonConfig) {
+	// Если игрок был в данже, то фиксируем время, проведенное на последнем этаже
+	if p.Status == StatusInDungeon {
+		p.accumulateUnclearedTime(closeTimeSec, cfg)
+		p.LeaveDungeonTime = closeTimeSec
+	}
+
+	// Если игрок еще не завершил испытание, то он проваливается
+	if p.Status == StatusInDungeon || p.Status == StatusRegistered || p.Status == StatusNew {
+		p.Status = StatusFail
+	}
+
 }
 
 // Обработчики конкретных состояний
