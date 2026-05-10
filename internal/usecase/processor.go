@@ -47,7 +47,6 @@ func (p *EventProcessor) GenerateFinalReport() []ReportEntry {
 	}
 
 	// Формируем отчет для всех игроков в порядке их первого появления
-	reports = make([]ReportEntry, 0, len(players))
 	for _, player := range players {
 		reports = append(reports, ReportEntry{
 			Status:       player.Status,
