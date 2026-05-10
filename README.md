@@ -46,41 +46,7 @@ Each player is an independent FSM. Below are the transitions:
 
 ## 📊 State Machine Diagram
 
-```plantuml
-@startuml
-skinparam state {
-  BackgroundColor White
-  BorderColor Black
-  ArrowColor Black
-}
-hide empty description
-
-[*] --> NEW
-NEW --> REGISTERED : Register
-NEW --> DISQUALIFIED : Enter / Cannot Continue
-NEW --> FAIL : Fatal Damage / Timeout
-
-REGISTERED --> IN_DUNGEON : Enter Dungeon [After OpenAt]
-REGISTERED --> DISQUALIFIED : Enter Early / Cannot Continue
-REGISTERED --> FAIL : Fatal Damage / Timeout
-
-IN_DUNGEON --> SUCCESS : Leave [All Cleared & Boss Dead]
-IN_DUNGEON --> FAIL : Leave [Not Cleared] / Fatal Damage / Timeout
-IN_DUNGEON --> DISQUALIFIED : Cannot Continue
-
-note right of IN_DUNGEON
-  <b>Internal Valid Moves:</b>
-  - Prev/Next Floor (if cleared)
-  - Kill Monster (if monsters exist)
-  - Kill Boss
-  - Heal / Take Damage
-end note
-
-SUCCESS --> [*]
-FAIL --> [*]
-DISQUALIFIED --> [*]
-@enduml
-```
+![State diagram](img/fsm.png)
 
 ## 🧩 Extensibility: Adding New Events
 The system is designed to be easily extensible. To add a new event (e.g., "Player uses potion"):
