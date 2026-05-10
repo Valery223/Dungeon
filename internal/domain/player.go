@@ -43,8 +43,8 @@ type Player struct {
 	CurrentFloorEnterTime int
 	TimeSpentOnFloors     []int
 
-	BossEnterTime int
-	BossKillTime  int
+	BossEnterTime      int
+	BossKillOrExitTime int
 }
 
 // ApplyEvent применяет событие "e" к состоянию игрока
@@ -59,7 +59,19 @@ func (p *Player) ApplyEvent(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	// Если данж закрылся, то игрок провалился(хотя не должно сюда попасть, так как мы не должны принимать события после закрытия данжа)
 	// Должно раньше обработаться, но на всякий случай
 	if e.TimeSec >= cfg.CloseAtSec {
+		if p.Status == StatusInDungeon {
+			// Если игрок был в данже, то фиксируем время, проведенное на последнем этаже
+			if p.CurrentFloor < cfg.Floors && !p.FloorCleared[p.CurrentFloor] {
+				// Если игрок был на обычном этаже, то фиксируем время, проведенное на нем
+				p.TimeSpentOnFloors[p.CurrentFloor] += cfg.CloseAtSec - p.CurrentFloorEnterTime
+			} else if p.CurrentFloor == cfg.Floors+1 && !p.BossDead {
+				// Если игрок был в комнате с боссом, то фиксируем время, проведенное на ней
+				p.BossKillOrExitTime = cfg.CloseAtSec - p.BossEnterTime
+			}
+			p.LeaveDungeonTime = cfg.CloseAtSec
+		}
 		p.Status = StatusFail
+
 		return ActionResult{IsAccepted: false}
 	}
 	switch e.ID {
@@ -78,13 +90,13 @@ func (p *Player) ApplyEvent(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	case EventKillBoss:
 		return p.killBoss(e, cfg)
 	case EventLeaveDungeon:
-		return p.leaveDungeon(e)
+		return p.leaveDungeon(e, cfg)
 	case EventCannotContinue:
-		return p.cannotContinue(e)
+		return p.cannotContinue(e, cfg)
 	case EventRestoreHP:
 		return p.restoreHP(e)
 	case EventReceiveDamage:
-		return p.receiveDamage(e)
+		return p.receiveDamage(e, cfg)
 	default:
 		return p.impossibleMove(e)
 	}
@@ -209,13 +221,13 @@ func (p *Player) killBoss(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	}
 
 	p.BossDead = true
-	p.BossKillTime = e.TimeSec - p.BossEnterTime
+	p.BossKillOrExitTime = e.TimeSec - p.BossEnterTime
 	return ActionResult{IsAccepted: true}
 }
 
 // leaveDungeon обрабатывает событие выхода из данжа
 // переводит игрока в статус Success или Fail в зависимости от того, зачистил ли он все этажи и убил босса
-func (p *Player) leaveDungeon(e IncomingEvent) ActionResult {
+func (p *Player) leaveDungeon(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	if p.Status != StatusInDungeon {
 		return p.impossibleMove(e)
 	}
@@ -235,11 +247,26 @@ func (p *Player) leaveDungeon(e IncomingEvent) ActionResult {
 		p.Status = StatusFail
 	}
 
+	// Time for metrics
+	if p.CurrentFloor < cfg.Floors && !p.FloorCleared[p.CurrentFloor] {
+		p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
+	} else if p.CurrentFloor == cfg.Floors+1 && !p.BossDead {
+		p.BossKillOrExitTime = e.TimeSec - p.BossEnterTime
+	}
 	return ActionResult{IsAccepted: true}
 }
 
 // cannotContinue обрабатывает событие, когда игрок не может продолжать
-func (p *Player) cannotContinue(e IncomingEvent) ActionResult {
+func (p *Player) cannotContinue(e IncomingEvent, cfg *DungeonConfig) ActionResult {
+	// time
+	if p.Status == StatusInDungeon {
+		if p.CurrentFloor < cfg.Floors && !p.FloorCleared[p.CurrentFloor] {
+			p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
+		} else if p.CurrentFloor == cfg.Floors+1 && !p.BossDead {
+			p.BossKillOrExitTime = e.TimeSec - p.BossEnterTime
+		}
+		p.LeaveDungeonTime = e.TimeSec
+	}
 	p.Status = StatusDisqual
 	return ActionResult{
 		IsAccepted: true,
@@ -260,11 +287,21 @@ func (p *Player) restoreHP(e IncomingEvent) ActionResult {
 
 // receiveDamage обрабатывает событие получения урона
 // При смерти переводит игрока в статус Fail и генерирует событие смерти
-func (p *Player) receiveDamage(e IncomingEvent) ActionResult {
+func (p *Player) receiveDamage(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	p.HP -= e.Value
 	if p.HP <= 0 {
 		p.HP = 0
+
 		p.Status = StatusFail
+
+		// time
+		if p.CurrentFloor < cfg.Floors {
+			// Если игрок умер на обычном этаже, то фиксируем время, проведенное на нем
+			p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
+		} else if p.CurrentFloor == cfg.Floors+1 {
+			// Если игрок умер в комнате с боссом, то фиксируем время, проведенное на ней
+			p.BossKillOrExitTime = e.TimeSec - p.BossEnterTime
+		}
 		p.LeaveDungeonTime = e.TimeSec
 		return p.dead(e)
 	}
