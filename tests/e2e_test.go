@@ -182,6 +182,7 @@ Final report:
 
 // TestEndToEndIntegration_one_player - тестирует систему на примере одного игрока,
 // который успешно проходит игру
+// но по пути делает много невалидных действий, которые не влияют на результат, так как игрок продолжает играть
 func TestEndToEndIntegration_one_player_2_with_imposibe_move(t *testing.T) {
 	// 1 Входные данные
 	inputEvents := `
@@ -258,6 +259,8 @@ Final report:
 		t.Errorf("Output mismatch.\nExpected:\n%s\nGot:\n%s", expectedClean, actualOutput)
 	}
 }
+
+// ----- Тестирование переходов между состояниями -----
 
 // TestEndToEndIntegration_state_new - тестирует переходы из состояния NEW
 // на примере одного игрока,
