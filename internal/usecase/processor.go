@@ -4,7 +4,7 @@ import (
 	"github.com/Valery223/Dungeon/internal/domain"
 )
 
-// ReportEntry - структура для финального отчета
+// ReportEntry - structure for final report
 type ReportEntry struct {
 	Status       domain.PlayerStatus
 	PlayerID     int
@@ -40,13 +40,13 @@ func (p *EventProcessor) GenerateFinalReport() []ReportEntry {
 	players := p.repo.GetAllOrdered()
 	reports := make([]ReportEntry, 0, len(players))
 
-	// Принудительно закрываем данж для всех игроков, которые в нем  все еще находятся
-	// Игроки получают статус Fail
+	// Force close dungeon for all players who are still in it
+	// Players receive Fail status
 	for _, player := range players {
 		player.ForceClose(p.cfg.CloseAtSec, p.cfg)
 	}
 
-	// Формируем отчет для всех игроков в порядке их первого появления
+	// Form report for all players in order of their first appearance
 	for _, player := range players {
 		reports = append(reports, ReportEntry{
 			Status:       player.Status,

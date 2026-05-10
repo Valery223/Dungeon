@@ -1,6 +1,6 @@
 package domain
 
-// DungeonConfig - конфигурация данжа
+// DungeonConfig - dungeon configuration
 type DungeonConfig struct {
 	Floors      int
 	Monsters    int

@@ -8,18 +8,18 @@ import (
 	"github.com/Valery223/Dungeon/internal/usecase"
 )
 
-// StreamWriter выводит результаты в поток
+// StreamWriter outputs results to stream
 type StreamWriter struct {
 	out io.Writer
 }
 
-// NewStreamWriter создает новый StreamWriter для данного io.Writer
+// NewStreamWriter creates a new StreamWriter for the given io.Writer
 func NewStreamWriter(w io.Writer) *StreamWriter {
 	return &StreamWriter{out: w}
 }
 
-// WriteAccepted выводит подтверждение успешного действия
-// например: "Player [1] registered"
+// WriteAccepted outputs successful action confirmation
+// for example: 'Player [1] registered'
 func (w *StreamWriter) WriteAccepted(e domain.IncomingEvent) error {
 	timeStr := formatTime(e.TimeSec)
 	var action string
@@ -53,8 +53,8 @@ func (w *StreamWriter) WriteAccepted(e domain.IncomingEvent) error {
 	return err
 }
 
-// WriteOutgoing выводит системные события
-// например  смерть, дисквалификация, невозможный ход
+// WriteOutgoing outputs system events
+// for example death, disqualification, impossible move
 func (w *StreamWriter) WriteOutgoing(e domain.OutgoingEvent) error {
 	timeStr := formatTime(e.TimeSec)
 	var action string
@@ -72,7 +72,7 @@ func (w *StreamWriter) WriteOutgoing(e domain.OutgoingEvent) error {
 	return err
 }
 
-// WriteReport выводит финальный отчет по всем игрокам
+// WriteReport outputs final report for all players
 func (w *StreamWriter) WriteReport(reports []usecase.ReportEntry) error {
 	_, err := fmt.Fprintln(w.out, "\nFinal report:")
 	if err != nil {
@@ -103,7 +103,7 @@ func (w *StreamWriter) WriteReport(reports []usecase.ReportEntry) error {
 	return nil
 }
 
-// formatTime превращает секунды в "HH:MM:SS"
+// formatTime converts seconds to 'HH:MM:SS'
 func formatTime(sec int) string {
 	h := sec / 3600
 	m := (sec % 3600) / 60

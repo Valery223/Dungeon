@@ -13,7 +13,7 @@ import (
 	"github.com/Valery223/Dungeon/internal/usecase"
 )
 
-// ConfigDTO - структура для загрузки конфигурации из json файла
+// ConfigDTO - structure for loading configuration from json file
 type ConfigDTO struct {
 	Floors   int    `json:"Floors"`
 	Monsters int    `json:"Monsters"`
@@ -22,18 +22,18 @@ type ConfigDTO struct {
 }
 
 func main() {
-	// 1 Читаем флаги
+	// 1 Read flags
 	configPath := flag.String("config", "config.json", "path to config file")
 	eventsPath := flag.String("events", "events", "path to events log file")
 	flag.Parse()
 
-	// 2 Загружаем конфигурацию
+	// 2 Load configuration
 	dungeonCfg, err := loadConfig(*configPath)
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// 3 Открываем файл с событиями
+	// 3 Open events file
 	eventsFile, err := os.Open(*eventsPath)
 	if err != nil {
 		log.Fatalf("Failed to open events file: %v", err)
@@ -44,23 +44,23 @@ func main() {
 		}
 	}()
 
-	// 4 Инициализация слоев инфраструктуры и приложения
+	// 4 Initialize infrastructure and application layers
 	reader := io.NewStreamReader(eventsFile)
-	writer := io.NewStreamWriter(os.Stdout) // Пишем в консоль
+	writer := io.NewStreamWriter(os.Stdout) // Write to console
 
-	// memory репозиторий для хранения состояния игроков в памяти
+	// memory repository for storing player state in memory
 	repo := memory.NewInMemoryPlayerRepo()
 	processor := usecase.NewEventProcessor(dungeonCfg, repo)
-	// runner - это фасад, который связывает все компоненты и запускает игру
+	// runner - this is a facade that connects all components and starts the game
 	runner := usecase.NewGameRunner(reader, writer, processor)
 
-	// 5 Запуск
+	// 5 Start
 	if err := runner.Run(); err != nil {
 		log.Fatalf("Game stopped with error: %v", err)
 	}
 }
 
-// loadConfig загружает конфигурацию из JSON файла и преобразует ее в DungeonConfig
+// loadConfig loads configuration from JSON file and converts it to DungeonConfig
 func loadConfig(path string) (*domain.DungeonConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -84,7 +84,7 @@ func loadConfig(path string) (*domain.DungeonConfig, error) {
 	}, nil
 }
 
-// parseTimeToSec переводит строку "HH:MM:SS" в секунды
+// parseTimeToSec converts string 'HH:MM:SS' to seconds
 func parseTimeToSec(t string) int {
 	var h, m, s int
 	_, _ = fmt.Sscanf(t, "%d:%d:%d", &h, &m, &s)

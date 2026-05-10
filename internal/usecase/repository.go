@@ -2,12 +2,12 @@ package usecase
 
 import "github.com/Valery223/Dungeon/internal/domain"
 
-// PlayerRepository интерфейс для работы с хранилищем игроков
+// PlayerRepository interface for working with player storage
 type PlayerRepository interface {
-	// Get возвращает игрока по ID или nil, если игрок не найден
-	Get(id int) *domain.Player
-	// Save сохраняет состояние игрока, если игрок новый, добавляем его ID в порядок
+	// Get returns a player by ID or nil if player not found
+	Get(playerID int) *domain.Player
+	// Save saves player state, if player is new, add their ID to the order
 	Save(player *domain.Player)
-	// GetAllOrdered возвращает всех игроков в порядке их первого появления
+	// GetAllOrdered returns all players in the order of their first appearance
 	GetAllOrdered() []*domain.Player
 }

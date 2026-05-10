@@ -2,22 +2,22 @@ package usecase
 
 import "github.com/Valery223/Dungeon/internal/domain"
 
-// EventReader интерфейс для получения входящих событий
+// EventReader interface for receiving incoming events
 type EventReader interface {
-	// Read возвращает следующее событие, если поток завершен, возвращает io.EOF
+	// Read returns the next event, returns io.EOF if stream is finished
 	Read() (domain.IncomingEvent, error)
 }
 
-// EventWriter интерфейс для вывода результатов
+// EventWriter interface for outputting results
 type EventWriter interface {
-	// WriteAccepted выводит подтверждение успешного действия
-	// например: "Player [1] registered"
+	// WriteAccepted outputs confirmation of successful action
+	// example: "Player [1] registered"
 	WriteAccepted(e domain.IncomingEvent) error
 
-	// WriteOutgoing выводит системные события
-	// например  смерть, дисквалификация, невозможный ход
+	// WriteOutgoing outputs system events
+	// example: death, disqualification, impossible move
 	WriteOutgoing(e domain.OutgoingEvent) error
 
-	// WriteReport выводит финальный отчет по всем игрокам
+	// WriteReport outputs final report for all players
 	WriteReport(reports []ReportEntry) error
 }

@@ -11,11 +11,11 @@ import (
 	"github.com/Valery223/Dungeon/internal/usecase"
 )
 
-// Тесты end-to-end для проверки всей системы на примере из задания
+// End-to-end tests to verify the entire system using the example from the task
 
-// TestEndToEndIntegration_from_example - тестирует систему на примере данном в задании
+// TestEndToEndIntegration_from_example - tests the system using the example provided in the task
 func TestEndToEndIntegration_from_example(t *testing.T) {
-	// 1 Входные данные
+	// 1 Input data
 	inputEvents := `
 [14:00:00] 1 1
 [14:00:00] 2 1
@@ -66,7 +66,7 @@ Final report:
 [DISQUAL] 3 [00:00:00, 00:00:00, 00:00:00] HP:100
 `
 
-	// 2 Настраиваем Конфиг
+	// 2 Configure Config
 	cfg := &domain.DungeonConfig{
 		Floors:      2,
 		Monsters:    2,
@@ -75,7 +75,7 @@ Final report:
 		CloseAtSec:  (14+2)*3600 + 5*60,
 	}
 
-	// 3 Подменяем ввод и вывод
+	// 3 Replace input and output
 	inBuf := strings.NewReader(inputEvents)
 	outBuf := new(bytes.Buffer)
 
@@ -85,13 +85,13 @@ Final report:
 	processor := usecase.NewEventProcessor(cfg, repo)
 	runner := usecase.NewGameRunner(reader, writer, processor)
 
-	// 4Запускаем систему
+	// 4 Run the system
 	err := runner.Run()
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	// 5 Проверяем результат
+	// 5 Check result
 	actualOutput := strings.TrimSpace(outBuf.String())
 	expectedClean := strings.TrimSpace(expectedOutput)
 
@@ -100,10 +100,10 @@ Final report:
 	}
 }
 
-// TestEndToEndIntegration_one_player - тестирует систему на примере одного игрока,
-// который успешно проходит игру
+// TestEndToEndIntegration_one_player - tests the system with an example of a single player
+// who successfully completes the game
 func TestEndToEndIntegration_one_player(t *testing.T) {
-	// 1 Входные данные
+	// 1 Input data
 	inputEvents := `
 [14:00:00] 1 1
 [14:05:10] 1 2
@@ -146,7 +146,7 @@ Final report:
 [SUCCESS] 1 [00:02:30, 00:00:40, 00:00:20] HP:50
 `
 
-	// 2 Настраиваем Конфиг
+	// 2 Configure Config
 	cfg := &domain.DungeonConfig{
 		Floors:      3,
 		Monsters:    3,
@@ -155,7 +155,7 @@ Final report:
 		CloseAtSec:  (14+2)*3600 + 5*60,
 	}
 
-	// 3 Подменяем ввод и вывод
+	// 3 Replace input and output
 	inBuf := strings.NewReader(inputEvents)
 	outBuf := new(bytes.Buffer)
 
@@ -165,13 +165,13 @@ Final report:
 	processor := usecase.NewEventProcessor(cfg, repo)
 	runner := usecase.NewGameRunner(reader, writer, processor)
 
-	// 4Запускаем систему
+	// 4 Run the system
 	err := runner.Run()
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	// 5 Проверяем результат
+	// 5 Check result
 	actualOutput := strings.TrimSpace(outBuf.String())
 	expectedClean := strings.TrimSpace(expectedOutput)
 
@@ -180,11 +180,11 @@ Final report:
 	}
 }
 
-// TestEndToEndIntegration_one_player - тестирует систему на примере одного игрока,
-// который успешно проходит игру
-// но по пути делает много невалидных действий, которые не влияют на результат, так как игрок продолжает играть
+// TestEndToEndIntegration_one_player_2_with_imposibe_move - tests the system with an example of a single player
+// who successfully completes the game
+// but along the way makes many invalid actions that do not affect the result, as the player continues to play
 func TestEndToEndIntegration_one_player_2_with_imposibe_move(t *testing.T) {
-	// 1 Входные данные
+	// 1 Input data
 	inputEvents := `
 [14:00:00] 1 3
 [14:00:10] 1 4
@@ -226,7 +226,7 @@ Final report:
 [SUCCESS] 1 [00:02:00, 00:00:20, 00:00:10] HP:100
 `
 
-	// 2 Настраиваем Конфиг
+	// 2 Configure Config
 	cfg := &domain.DungeonConfig{
 		Floors:      2,
 		Monsters:    2,
@@ -235,7 +235,7 @@ Final report:
 		CloseAtSec:  (14+2)*3600 + 5*60,
 	}
 
-	// 3 Подменяем ввод и вывод
+	// 3 Replace input and output
 	inBuf := strings.NewReader(inputEvents)
 	outBuf := new(bytes.Buffer)
 
@@ -245,13 +245,13 @@ Final report:
 	processor := usecase.NewEventProcessor(cfg, repo)
 	runner := usecase.NewGameRunner(reader, writer, processor)
 
-	// 4Запускаем систему
+	// 4 Run the system
 	err := runner.Run()
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	// 5 Проверяем результат
+	// 5 Check result
 	actualOutput := strings.TrimSpace(outBuf.String())
 	expectedClean := strings.TrimSpace(expectedOutput)
 
@@ -260,17 +260,17 @@ Final report:
 	}
 }
 
-// ----- Тестирование переходов между состояниями -----
+// ----- Testing state transitions -----
 
-// TestEndToEndIntegration_state_new - тестирует переходы из состояния NEW
-// на примере одного игрока,
-// Возможные переходы:
-// NEW -> REGISTERED (при регистрации)
-// NEW -> DISQUALIFIED (при входе в данж до регистрации)
-// NEW -> DISQUALIFIED (не может продолжать)
-// NEW -> FAIL (время вышло, данж закрылся)
-// NEW -> FAIL (умирает)
-// NEW -> NEW (невалидное действие)
+// TestEndToEndIntegration_state_new - tests state transitions from NEW
+// with an example of a single player,
+// Possible transitions:
+// NEW -> REGISTERED (upon registration)
+// NEW -> DISQUALIFIED (on entering dungeon before registration)
+// NEW -> DISQUALIFIED (cannot continue)
+// NEW -> FAIL (time is up, dungeon closed)
+// NEW -> FAIL (dies)
+// NEW -> NEW (invalid action)
 func TestEndToEndIntegration_state_new(t *testing.T) {
 	startInput := `
 	`
@@ -391,15 +391,15 @@ Final report:
 	}
 }
 
-// TestEndToEndIntegration_state_registered - тестирует переходы из состояния REGISTERED
-// на примере одного игрока,
-// Возможные переходы:
-// REGISTERED -> DUNGEON (при входе в данж после открытия)
-// REGISTERED -> DISQUALIFIED (при входе в данж до открытия)
-// REGISTERED -> DISQUALIFIED (не может продолжать)
-// REGISTERED -> FAIL (время вышло, данж закрылся)
-// REGISTERED -> FAIL (умирает)
-// REGISTERED -> REGISTERED (невалидное действие)
+// TestEndToEndIntegration_state_registered - tests state transitions from REGISTERED
+// with an example of a single player,
+// Possible transitions:
+// REGISTERED -> DUNGEON (on entering dungeon after opening)
+// REGISTERED -> DISQUALIFIED (on entering dungeon before opening)
+// REGISTERED -> DISQUALIFIED (cannot continue)
+// REGISTERED -> FAIL (time is up, dungeon closed)
+// REGISTERED -> FAIL (dies)
+// REGISTERED -> REGISTERED (invalid action)
 func TestEndToEndIntegration_state_registered(t *testing.T) {
 	startInput := `
 [14:00:00] 1 1`
@@ -520,17 +520,17 @@ Final report:
 	}
 }
 
-// TestEndToEndIntegration_state_dungeon - тестирует переходы из состояния DUNGEON
-// на примере одного игрока,
-// Больше вариантов на невалидные действия,
-// есть в тестах player_test.go,
-// Возможные переходы:
-// DUNGEON -> SUCCESS (при зачистки данжа)
-// DUNGEON -> DISQUALIFIED (не может продолжать)
-// DUNGEON -> FAIL (время вышло, данж закрылся)
-// DUNGEON -> FAIL (умирает)
-// DUNGEON -> FAIL (выходит из данжа до его зачистки)
-// DUNGEON -> DUNGEON (невалидное действие)
+// TestEndToEndIntegration_state_dungeon - tests state transitions from DUNGEON
+// with an example of a single player,
+// More options for invalid actions,
+// are in player_test.go tests,
+// Possible transitions:
+// DUNGEON -> SUCCESS (upon clearing the dungeon)
+// DUNGEON -> DISQUALIFIED (cannot continue)
+// DUNGEON -> FAIL (time is up, dungeon closed)
+// DUNGEON -> FAIL (dies)
+// DUNGEON -> FAIL (exits the dungeon before clearing it)
+// DUNGEON -> DUNGEON (invalid action)
 func TestEndToEndIntegration_state_dungeon(t *testing.T) {
 	startInput := `
 [14:00:00] 1 1

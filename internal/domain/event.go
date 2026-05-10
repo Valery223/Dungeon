@@ -1,39 +1,39 @@
 package domain
 
-// Здесь описаны сущности событий (входящие и исходящие)
+// Event entities are described here (incoming and outgoing)
 type EventID int
 
-// Константы для идентификаторов событий
+// Constants for event identifiers
 const (
 	// Incoming events
-	EventRegister       EventID = 1  // Регистрация игрока
-	EventEnterDungeon   EventID = 2  // Вход в данж
-	EventKillMonster    EventID = 3  // Убийство монстра
-	EventNextFloor      EventID = 4  // Переход на следующий этаж
-	EventPrevFloor      EventID = 5  // Переход на предыдущий этаж
-	EventEnterBoss      EventID = 6  // Вход в комнату с боссом
-	EventKillBoss       EventID = 7  // Убийство босса
-	EventLeaveDungeon   EventID = 8  // Выход из данжа
-	EventCannotContinue EventID = 9  // Невозможность продолжить
-	EventRestoreHP      EventID = 10 // Восстановление HP
-	EventReceiveDamage  EventID = 11 // Получение урона
+	EventRegister       EventID = 1  // Player registration
+	EventEnterDungeon   EventID = 2  // Entering the dungeon
+	EventKillMonster    EventID = 3  // Killing a monster
+	EventNextFloor      EventID = 4  // Moving to next floor
+	EventPrevFloor      EventID = 5  // Moving to previous floor
+	EventEnterBoss      EventID = 6  // Entering boss room
+	EventKillBoss       EventID = 7  // Killing the boss
+	EventLeaveDungeon   EventID = 8  // Leaving dungeon
+	EventCannotContinue EventID = 9  // Cannot continue
+	EventRestoreHP      EventID = 10 // HP restoration
+	EventReceiveDamage  EventID = 11 // Receiving damage
 
 	// Outgoing events
-	EventOutDisqualified EventID = 31 // Игрок дисквалифицирован
-	EventOutDead         EventID = 32 // Игрок умер
-	EventOutImpossible   EventID = 33 // Невозможное действие
+	EventOutDisqualified EventID = 31 // Player disqualified
+	EventOutDead         EventID = 32 // Player died
+	EventOutImpossible   EventID = 33 // Impossible action
 )
 
-// IncomingEvent представляет событие, которое приходит от игрока
+// IncomingEvent represents an event coming from the player
 type IncomingEvent struct {
 	ID       EventID
 	TimeSec  int
 	PlayerID int
-	Value    int    // распарсенное из ExtraParam (урон, хп)
-	Extra    string // оригинальный ExtraParam
+	Value    int    // parsed from ExtraParam (damage, hp)
+	Extra    string // original ExtraParam
 }
 
-// OutgoingEvent представляет исходящее событие
+// OutgoingEvent represents an outgoing event
 type OutgoingEvent struct {
 	ID              EventID
 	IncomingEventID EventID

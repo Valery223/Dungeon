@@ -28,49 +28,49 @@ func defaultCfg() *DungeonConfig {
 	}
 }
 
-// assertActionResult - вспомогательная функция для проверки результатов действий игрока в тестаx
+// assertActionResult - helper function for checking the results of player actions in tests
 func assertActionResult(t *testing.T, expectedStatus PlayerStatus, expectedRes ActionResult, actualPlayer *Player, actualRes ActionResult) {
 	t.Helper()
 
-	// 1. Проверяем изменение состояния
+	// 1. Check status change
 	if actualPlayer.Status != expectedStatus {
-		t.Errorf("Статус: ожидалось %v, получено %v", expectedStatus, actualPlayer.Status)
+		t.Errorf("Status: expected %v, got %v", expectedStatus, actualPlayer.Status)
 	}
 
-	// 2. Проверяем, принято ли действие
+	// 2. Check if action was accepted
 	if actualRes.IsAccepted != expectedRes.IsAccepted {
-		t.Errorf("IsAccepted: ожидалось %v, получено %v", expectedRes.IsAccepted, actualRes.IsAccepted)
+		t.Errorf("IsAccepted: expected %v, got %v", expectedRes.IsAccepted, actualRes.IsAccepted)
 	}
 
-	// 3. Проверяем ответное событие
+	// 3. Check outgoing event
 	if expectedRes.OutgoingEvent == nil && actualRes.OutgoingEvent != nil {
-		t.Errorf("OutgoingEvent: ожидалось nil, получено %+v", actualRes.OutgoingEvent)
+		t.Errorf("OutgoingEvent: expected nil, got %+v", actualRes.OutgoingEvent)
 		return
 	}
 	if expectedRes.OutgoingEvent != nil {
 		if actualRes.OutgoingEvent == nil {
-			t.Errorf("OutgoingEvent: ожидалось %+v, получено nil", expectedRes.OutgoingEvent)
+			t.Errorf("OutgoingEvent: expected %+v, got nil", expectedRes.OutgoingEvent)
 			return
 		}
 		if expectedRes.OutgoingEvent.ID != actualRes.OutgoingEvent.ID {
-			t.Errorf("OutgoingEvent ID: ожидалось %v, получено %v", expectedRes.OutgoingEvent.ID, actualRes.OutgoingEvent.ID)
+			t.Errorf("OutgoingEvent ID: expected %v, got %v", expectedRes.OutgoingEvent.ID, actualRes.OutgoingEvent.ID)
 		}
 		if expectedRes.OutgoingEvent.IncomingEventID != actualRes.OutgoingEvent.IncomingEventID {
-			t.Errorf("OutgoingEvent IncomingEventID: ожидалось %v, получено %v", expectedRes.OutgoingEvent.IncomingEventID, actualRes.OutgoingEvent.IncomingEventID)
+			t.Errorf("OutgoingEvent IncomingEventID: expected %v, got %v", expectedRes.OutgoingEvent.IncomingEventID, actualRes.OutgoingEvent.IncomingEventID)
 		}
 	}
 }
 
-// TestPlayer_StateNew проверяет все переходы из состояния New
-// Таблица переходов:
-//   - Registered - если регистрируется
-//   - Disqual - если пытается войти в данж, не зарегистрировавшись
-//   - Disqual - если получаем событие о том, что не может продолжать соревнование
-//   - Fail - если получает событие, когда время вышло
-//   - Fail - если получает смертельный урон(генерируем событие смерти)
-//   - New - если получает урон, но не умирает
-//   - New - если игрок восстанавливает HP
-//   - New - при всех остальных событиях, так же  отдаем событие  imposible move
+// TestPlayer_StateNew checks all transitions from New state
+// Transition table:
+//   - Registered - if registered
+//   - Disqual - if tries to enter dungeon without registering
+//   - Disqual - if receives event that cannot continue competition
+//   - Fail - if receives event when time is up
+//   - Fail - if receives lethal damage (generate death event)
+//   - New - if receives damage but does not die
+//   - New - if player restores HP
+//   - New - for all other events, also send imposible move event
 func TestPlayer_StateNew(t *testing.T) {
 
 	tests := []struct {
@@ -80,13 +80,13 @@ func TestPlayer_StateNew(t *testing.T) {
 		expectedActionResult ActionResult
 	}{
 		{
-			name:                 "Регистрация",
+			name:                 "Registration",
 			inEvent:              IncomingEvent{ID: EventRegister, TimeSec: 100},
 			expectedStatus:       StatusRegistered,
 			expectedActionResult: ActionResult{IsAccepted: true},
 		},
 		{
-			name:           "Вход без регистрации",
+			name:           "Enter without registration",
 			inEvent:        IncomingEvent{ID: EventEnterDungeon, TimeSec: 100},
 			expectedStatus: StatusDisqual,
 			expectedActionResult: ActionResult{
@@ -97,7 +97,7 @@ func TestPlayer_StateNew(t *testing.T) {
 				}},
 		},
 		{
-			name:           "Не может продолжать соревнование",
+			name:           "Cannot continue competition",
 			inEvent:        IncomingEvent{ID: EventCannotContinue, TimeSec: 100, Extra: "test"},
 			expectedStatus: StatusDisqual,
 			expectedActionResult: ActionResult{
@@ -108,7 +108,7 @@ func TestPlayer_StateNew(t *testing.T) {
 				}},
 		},
 		{
-			name: "Время вышло",
+			name: "Time is up",
 			inEvent: IncomingEvent{
 				ID:      EventRegister,
 				TimeSec: 99999,
@@ -117,7 +117,7 @@ func TestPlayer_StateNew(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: false},
 		},
 		{
-			name: "Невозможное действие",
+			name: "Impossible action",
 			inEvent: IncomingEvent{
 				ID:      EventKillMonster,
 				TimeSec: 100,
@@ -132,7 +132,7 @@ func TestPlayer_StateNew(t *testing.T) {
 			},
 		},
 		{
-			name: "Получает урон, но не умирает",
+			name: "Receives damage but doesn't die",
 			inEvent: IncomingEvent{
 				ID:      EventReceiveDamage,
 				TimeSec: 100,
@@ -145,7 +145,7 @@ func TestPlayer_StateNew(t *testing.T) {
 			},
 		},
 		{
-			name: "Получает смертельный урон",
+			name: "Receives lethal damage",
 			inEvent: IncomingEvent{
 				ID:      EventReceiveDamage,
 				TimeSec: 100,
@@ -175,16 +175,16 @@ func TestPlayer_StateNew(t *testing.T) {
 	}
 }
 
-// TestPlayer_StateRegistered проверяет все переходы из состояния Registered
-// Таблица переходов:
-//   - InDungeon - если игрок входит в данж
-//   - Disqual - если приходит  событие о том, что не может продолжать соревнование
-//   - Disqual - если игрок пытается войти в данж до его открытия
-//   - Fail - если получает событие, когда время вышло
-//   - Fail - если получает смертельный урон(генерируем событие смерти)
-//   - Registered - если получает урон, но не умирает
-//   - Registered - если игрок восстанавливает HP
-//   - Registered - при всех остальных событиях, так же  отдаем событие  imposible move
+// TestPlayer_StateRegistered checks all transitions from Registered state
+// Transition table:
+//   - InDungeon - if player enters dungeon
+//   - Disqual - if receives event that cannot continue competition
+//   - Disqual - if player tries to enter dungeon before it opens
+//   - Fail - if receives event when time is up
+//   - Fail - if receives lethal damage (generate death event)
+//   - Registered - if receives damage but doesn't die
+//   - Registered - if player restores HP
+//   - Registered - for all other events, also send imposible move event
 func TestPlayer_StateRegistered(t *testing.T) {
 
 	tests := []struct {
@@ -194,7 +194,7 @@ func TestPlayer_StateRegistered(t *testing.T) {
 		expectedActionResult ActionResult
 	}{
 		{
-			name: "Вход в данж",
+			name: "Enter dungeon",
 			inEvent: IncomingEvent{
 				ID:      EventEnterDungeon,
 				TimeSec: 100,
@@ -203,7 +203,7 @@ func TestPlayer_StateRegistered(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: true},
 		},
 		{
-			name: "Не может продолжать соревнование",
+			name: "Cannot continue competition",
 			inEvent: IncomingEvent{
 				ID:      EventCannotContinue,
 				TimeSec: 100,
@@ -218,7 +218,7 @@ func TestPlayer_StateRegistered(t *testing.T) {
 				}},
 		},
 		{
-			name: "Пытается войти в данж до открытия",
+			name: "Tries to enter dungeon before opening",
 			inEvent: IncomingEvent{
 				ID:      EventEnterDungeon,
 				TimeSec: 0,
@@ -232,7 +232,7 @@ func TestPlayer_StateRegistered(t *testing.T) {
 				}},
 		},
 		{
-			name: "Время вышло",
+			name: "Time is up",
 			inEvent: IncomingEvent{
 				ID:      EventEnterDungeon,
 				TimeSec: 99999,
@@ -241,7 +241,7 @@ func TestPlayer_StateRegistered(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: false},
 		},
 		{
-			name: "Невозможное действие",
+			name: "Impossible action",
 			inEvent: IncomingEvent{
 				ID:      EventKillMonster,
 				TimeSec: 100,
@@ -256,7 +256,7 @@ func TestPlayer_StateRegistered(t *testing.T) {
 			},
 		},
 		{
-			name: "Получает урон, но не умирает",
+			name: "Receives damage but doesn't die",
 			inEvent: IncomingEvent{
 				ID:      EventReceiveDamage,
 				TimeSec: 100,
@@ -267,7 +267,7 @@ func TestPlayer_StateRegistered(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: true},
 		},
 		{
-			name: "Получает смертельный урон",
+			name: "Receives lethal damage",
 			inEvent: IncomingEvent{
 				ID:      EventReceiveDamage,
 				TimeSec: 100,
@@ -296,24 +296,24 @@ func TestPlayer_StateRegistered(t *testing.T) {
 	}
 }
 
-// TestPlayer_StateInDungeon проверяет все переходы из состояния InDungeon
-// Таблица переходов:
-//   - InDungeon - если игрок спускается на предыдущий этаж(если он не на первом этаже и не у босса)
-//   - InDungeon - если игрок убивает монстра (если он не на последнем этаже и не у босса и в комнате с монстрами еще есть монстры)
-//   - InDungeon - если игрок поднимается на следующий этаж(если он не на последнем этаже и не у босса и зачистил текущий этаж)
-//   - InDungeon - если игрок входит в комнату с боссом (если он на последнем этаже и уже не у босса)
-//   - InDungeon - если игрок убивает босса (если он на последнем этаже и у босса)
-//     -InDungeon - если игрок восстанавливает HP
-//     -InDungeon - если игрок получает урон, но не умирает
-//     -Disqual - если приходит  событие о том, что не может продолжать соревнование
-//     -Fail - если получаем событие, когда время вышло
-//     -Fail - если получает урон, который убивает игрока(генерируем событие смерти)
-//     -Fail - если выходит из данжа не зачистив подземелье
-//     -Success - если выходит из данжа, зачистив подземелье
-//     -InDungeon - если пытается подняться на следующий этаж, находясь на последнем этаже, событие  imposible move
-//     -InDungeon - если пытается подняться на следующий этаж, не зачистив текущий этаж, событие  imposible move
-//     -InDungeon - если пытается спуститься на предыдущий этаж, находясь на первом этаже, событие  imposible move
-//     -InDungeon - при всех остальных событиях, так же  отдаем событие  imposible move
+// TestPlayer_StateInDungeon checks all transitions from InDungeon state
+// Transition table:
+//   - InDungeon - if player goes to previous floor (if not on first floor and not at boss)
+//   - InDungeon - if player kills monster (if not on last floor and not at boss and there are more monsters in room)
+//   - InDungeon - if player goes to next floor (if not on last floor and not at boss and cleared current floor)
+//   - InDungeon - if player enters boss room (if on last floor and not at boss yet)
+//   - InDungeon - if player kills boss (if on last floor and at boss)
+//   - InDungeon - if player restores HP
+//   - InDungeon - if player receives damage but doesn't die
+//   - Disqual - if receives event that cannot continue competition
+//   - Fail - if receives event when time is up
+//   - Fail - if receives damage that kills player (generate death event)
+//   - Fail - if exits dungeon without clearing it
+//   - Success - if exits dungeon after clearing it
+//   - InDungeon - if tries to go to next floor while on last floor, imposible move event
+//   - InDungeon - if tries to go to next floor without clearing current floor, imposible move event
+//   - InDungeon - if tries to go to previous floor while on first floor, imposible move event
+//   - InDungeon - for all other events, also send imposible move event
 func TestPlayer_StateInDungeon(t *testing.T) {
 	cfg := defaultCfg()
 	tests := []struct {
@@ -327,7 +327,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 		expectedActionResult ActionResult
 	}{
 		{
-			name: "Спускается на предыдущий этаж",
+			name: "Goes to previous floor",
 			inEvent: IncomingEvent{
 				ID:      EventPrevFloor,
 				TimeSec: 100,
@@ -337,7 +337,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: true},
 		},
 		{
-			name: "Убивает монстра",
+			name: "Kills monster",
 			inEvent: IncomingEvent{
 				ID:      EventKillMonster,
 				TimeSec: 100,
@@ -348,7 +348,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: true},
 		},
 		{
-			name: "Поднимается на следующий этаж",
+			name: "Goes to next floor",
 			inEvent: IncomingEvent{
 				ID:      EventNextFloor,
 				TimeSec: 100,
@@ -359,7 +359,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: true},
 		},
 		{
-			name: "Входит в комнату с боссом",
+			name: "Enters boss room",
 			inEvent: IncomingEvent{
 				ID:      EventEnterBoss,
 				TimeSec: 100,
@@ -369,7 +369,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: true},
 		},
 		{
-			name: "Убивает босса",
+			name: "Kills boss",
 			inEvent: IncomingEvent{
 				ID:      EventKillBoss,
 				TimeSec: 100,
@@ -379,7 +379,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: true},
 		},
 		{
-			name: "Восстанавливает HP",
+			name: "Restores HP",
 			inEvent: IncomingEvent{
 				ID:      EventRestoreHP,
 				TimeSec: 100,
@@ -390,7 +390,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: true},
 		},
 		{
-			name: "Получает урон, но не умирает",
+			name: "Receives damage but doesn't die",
 			inEvent: IncomingEvent{
 				ID:      EventReceiveDamage,
 				TimeSec: 100,
@@ -401,7 +401,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: true},
 		},
 		{
-			name: "Не может продолжать соревнование",
+			name: "Cannot continue competition",
 			inEvent: IncomingEvent{
 				ID:      EventCannotContinue,
 				TimeSec: 100,
@@ -418,7 +418,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			},
 		},
 		{
-			name: "Время вышло",
+			name: "Time is up",
 			inEvent: IncomingEvent{
 				ID:      EventRestoreHP,
 				TimeSec: 99999,
@@ -428,7 +428,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: false},
 		},
 		{
-			name: "Получает урон, который убивает игрока",
+			name: "Receives lethal damage",
 			inEvent: IncomingEvent{
 				ID:      EventReceiveDamage,
 				TimeSec: 100,
@@ -445,7 +445,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			},
 		},
 		{
-			name: "Выходит из данжа не зачистив подземелье",
+			name: "Leaves dungeon without clearing it",
 			inEvent: IncomingEvent{
 				ID:      EventLeaveDungeon,
 				TimeSec: 100,
@@ -456,7 +456,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: true},
 		},
 		{
-			name: "Выходит из данжа, зачистив подземелье",
+			name: "Leaves dungeon after clearing it",
 			inEvent: IncomingEvent{
 				ID:      EventLeaveDungeon,
 				TimeSec: 100,
@@ -468,7 +468,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			expectedActionResult: ActionResult{IsAccepted: true},
 		},
 		{
-			name: "Пытается подняться на следующий этаж, находясь на последнем этаже",
+			name: "Tries to go to next floor from last floor",
 			inEvent: IncomingEvent{
 				ID:      EventNextFloor,
 				TimeSec: 100,
@@ -486,7 +486,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			},
 		},
 		{
-			name: "Пытается подняться на следующий этаж, не зачистив текущий этаж",
+			name: "Tries to go to next floor without clearing current",
 			inEvent: IncomingEvent{
 				ID:      EventNextFloor,
 				TimeSec: 100,
@@ -504,7 +504,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			},
 		},
 		{
-			name: "Пытается спуститься на предыдущий этаж, находясь на первом этаже",
+			name: "Tries to go to previous floor from first floor",
 			inEvent: IncomingEvent{
 				ID:      EventPrevFloor,
 				TimeSec: 100,
@@ -522,7 +522,7 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 			},
 		},
 		{
-			name: "Невозможное действие",
+			name: "Impossible action",
 			inEvent: IncomingEvent{
 				ID:      EventRegister,
 				TimeSec: 100,
@@ -564,20 +564,20 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 	}
 }
 
-// TestPlayer_TimeMetrics проверяет правильность расчета временных метрик (время на этажах, время в данже, время у босса)
-// Сценарий теста:
-// 1. Игрок прошел данж
-// 2. Игрок умер на этаже
-// 3. Игрок умер у босса
-// 4. Игрок вышел из данжа, не зачистив его
-// 5. Время вышло, игрок на этаже
-// 6. Время вышло, игрок у босса
-// 7. Время вышло, игрок у регистрации
-// 8. Время вышло, игрок на этапе New
-// 9. Пришло событие "Игрок не может продолжить" на этаже
-// 10. Пришло событие "Игрок не может продолжить" у босса
-// 11. Пришло событие "Игрок не может продолжить" на регистрации
-// 12. Пришло событие "Игрок не может продолжить" на этапе New
+// TestPlayer_TimeMetrics checks correctness of time metrics calculation (time on floors, time in dungeon, time with boss)
+// Test scenarios:
+// 1. Player cleared dungeon
+// 2. Player died on floor
+// 3. Player died with boss
+// 4. Player left dungeon without clearing it
+// 5. Time is up, player on floor
+// 6. Time is up, player with boss
+// 7. Time is up, player at registration
+// 8. Time is up, player in New state
+// 9. Event "Player cannot continue" received on floor
+// 10. Event "Player cannot continue" received with boss
+// 11. Event "Player cannot continue" received at registration
+// 12. Event "Player cannot continue" received in New state
 // func TestPlayer_TimeMetrics(t *testing.T) {
 // 	tests := []struct {
 // 		name                      string
@@ -588,16 +588,16 @@ func TestPlayer_StateInDungeon(t *testing.T) {
 // 		expectedTimeLeftInDungeon int
 // 	}{
 // 		{
-// 			name: "Игрок прошел данж",
+// 			name: "Player cleared dungeon",
 // 			inEvents: IncomingEvent{
 // 		},
 // 	}
 // }
 
-// TestPlayer_TimeMetrics проверяет правильность расчета временных метрик
-// (время на этажах, время у босса, фиксация времени выхода).
+// TestPlayer_TimeMetrics checks the correctness of time metrics calculation
+// (time spent on floors, time with boss, save exit time).
 func TestPlayer_TimeMetrics(t *testing.T) {
-	// Конфиг: 2 этажа, по 2 монстра на каждом. Подземелье закрывается на 1000-й секунде.
+	// Config: 3 floors, 2 monsters each. Dungeon closes at second 1010.
 	cfg := &DungeonConfig{
 		Floors:      3,
 		Monsters:    2,
@@ -610,72 +610,72 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 		name                 string
 		inEvents             []IncomingEvent
 		expectedStatus       PlayerStatus
-		expectedFloorTimes   []int // Индекс совпадает с номером этажа (0 - пустой)
+		expectedFloorTimes   []int // Index matches floor number (0 - empty)
 		expectedBossKillTime int
 		expectedLeaveTime    int
 	}{
 		{
-			name: "Игрок успешно прошел весь данж",
+			name: "Player successfully cleared the entire dungeon",
 			inEvents: []IncomingEvent{
 				{ID: EventRegister, TimeSec: 10},
-				{ID: EventEnterDungeon, TimeSec: 20}, // Вошел (CurrentFloorEnterTime = 20)
+				{ID: EventEnterDungeon, TimeSec: 20}, // Entered (CurrentFloorEnterTime = 20)
 
-				// 1 Этаж
+				// 1 Floor
 				{ID: EventKillMonster, TimeSec: 30},
-				{ID: EventKillMonster, TimeSec: 40}, // Убил последнего на 1 этаже. Время: 40-20 = 20
-				{ID: EventNextFloor, TimeSec: 50},   // Перешел на 2 этаж (CurrentFloorEnterTime = 50)
+				{ID: EventKillMonster, TimeSec: 40}, // Killed last on floor 1. Time: 40-20 = 20
+				{ID: EventNextFloor, TimeSec: 50},   // Moved to floor 2 (CurrentFloorEnterTime = 50)
 
-				// 2 Этаж
+				// 2 Floor
 				{ID: EventKillMonster, TimeSec: 60},
-				{ID: EventKillMonster, TimeSec: 80}, // Убил последнего на 2 этаже. Время: 80-50 = 30
-				{ID: EventNextFloor, TimeSec: 85},   // Перешел на 3 этаж (CurrentFloorEnterTime = 85)
-				{ID: EventEnterBoss, TimeSec: 90},   // Зашел к боссу (BossEnterTime = 90)
+				{ID: EventKillMonster, TimeSec: 80}, // Killed last on floor 2. Time: 80-50 = 30
+				{ID: EventNextFloor, TimeSec: 85},   // Moved to floor 3 (CurrentFloorEnterTime = 85)
+				{ID: EventEnterBoss, TimeSec: 90},   // Entered boss room (BossEnterTime = 90)
 
-				// Босс
-				{ID: EventKillBoss, TimeSec: 120},     // Убил босса. Время: 120-90 = 30
-				{ID: EventLeaveDungeon, TimeSec: 130}, // Вышел
+				// Boss
+				{ID: EventKillBoss, TimeSec: 120},     // Killed boss. Time: 120-90 = 30
+				{ID: EventLeaveDungeon, TimeSec: 130}, // Left
 			},
 			expectedStatus:       StatusSuccess,
-			expectedFloorTimes:   []int{0, 20, 30}, // 0-й индекс не используется, 1 этаж = 20с, 2 этаж = 30с
+			expectedFloorTimes:   []int{0, 20, 30}, // 0-th index not used, floor 1 = 20s, floor 2 = 30s
 			expectedBossKillTime: 30,
 			expectedLeaveTime:    130,
 		},
 		{
-			name: "Игрок умер на 2 этаже",
+			name: "Player died on floor 2",
 			inEvents: []IncomingEvent{
 				{ID: EventRegister, TimeSec: 10},
 				{ID: EventEnterDungeon, TimeSec: 20},
 				{ID: EventKillMonster, TimeSec: 30},
-				{ID: EventKillMonster, TimeSec: 40}, // Зачистил 1 этаж. Время 20с
+				{ID: EventKillMonster, TimeSec: 40}, // Cleared floor 1. Time 20s
 				{ID: EventNextFloor, TimeSec: 50},
 				{ID: EventKillMonster, TimeSec: 60},
-				{ID: EventReceiveDamage, TimeSec: 70, Value: 100}, // Умер. Время на 2 этаже: 70-50 = 20
+				{ID: EventReceiveDamage, TimeSec: 70, Value: 100}, // Died. Time on floor 2: 70-50 = 20
 			},
 			expectedStatus: StatusFail,
-			// 2 этаж
+			// Floor 2
 			expectedFloorTimes:   []int{0, 20, 20},
 			expectedBossKillTime: 0,
-			expectedLeaveTime:    70, // Время смерти = время выхода
+			expectedLeaveTime:    70, // Death time = exit time
 		},
 		{
-			name: "Время вышло, пока игрок был на этаже",
+			name: "Time is up while player was on a floor",
 			inEvents: []IncomingEvent{
 				{ID: EventRegister, TimeSec: 10},
 				{ID: EventEnterDungeon, TimeSec: 20},
 				{ID: EventKillMonster, TimeSec: 30},
-				{ID: EventKillMonster, TimeSec: 40}, // Зачистил 1 этаж. Время 20с
+				{ID: EventKillMonster, TimeSec: 40}, // Cleared floor 1. Time 20s
 				{ID: EventNextFloor, TimeSec: 50},
 				{ID: EventKillMonster, TimeSec: 60},
-				// Приходит любое событие после CloseAtSec (1010)
+				// Any event after CloseAtSec (1010)
 				{ID: EventKillMonster, TimeSec: 1050},
 			},
 			expectedStatus:       StatusFail,
-			expectedFloorTimes:   []int{0, 20, 1010 - 50}, // Ничего не успел зачистить
+			expectedFloorTimes:   []int{0, 20, 1010 - 50}, // Nothing cleared
 			expectedBossKillTime: 0,
 			expectedLeaveTime:    1010,
 		},
 		{
-			name: "Игрок вышел из данжа, не зачистив его",
+			name: "Player left dungeon without clearing it",
 			inEvents: []IncomingEvent{
 				{ID: EventRegister, TimeSec: 10},
 				{ID: EventEnterDungeon, TimeSec: 20},
@@ -687,7 +687,7 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 			expectedLeaveTime:    40,
 		},
 		{
-			name: "Игрок не может продолжить (Cannot continue) на этаже",
+			name: "Player cannot continue (Cannot continue) on a floor",
 			inEvents: []IncomingEvent{
 				{ID: EventRegister, TimeSec: 10},
 				{ID: EventEnterDungeon, TimeSec: 20},
@@ -699,9 +699,9 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 			expectedLeaveTime:    30,
 		},
 		{
-			name: "Время вышло, пока игрок был в статусе New",
+			name: "Time is up while player was in New state",
 			inEvents: []IncomingEvent{
-				// Пытается зарегистрироваться после закрытия подземелья
+				// Tries to register after dungeon closes
 				{ID: EventRegister, TimeSec: 1050},
 			},
 			expectedStatus:       StatusFail,
@@ -710,14 +710,14 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 			expectedLeaveTime:    0,
 		},
 		{
-			name: "Игрок перешл со 2 этажа на 1 этаж и не может продолжить (Cannot continue) на первом этаже",
+			name: "Player moved from floor 2 to floor 1 and cannot continue (Cannot continue) on floor 1",
 			inEvents: []IncomingEvent{
 				{ID: EventRegister, TimeSec: 10},
 				{ID: EventEnterDungeon, TimeSec: 20},
 				{ID: EventKillMonster, TimeSec: 30},
-				{ID: EventKillMonster, TimeSec: 40}, // Зачистил 1 этаж. Время 20с
+				{ID: EventKillMonster, TimeSec: 40}, // Cleared floor 1. Time 20s
 				{ID: EventNextFloor, TimeSec: 50},
-				{ID: EventPrevFloor, TimeSec: 60}, // Вернулся на 1 этаж. Время на 2 этаже = 10с
+				{ID: EventPrevFloor, TimeSec: 60}, // Returned to floor 1. Time on floor 2 = 10s
 				{ID: EventCannotContinue, TimeSec: 70, Extra: "Test test"},
 			},
 			expectedStatus:       StatusDisqual,
@@ -726,29 +726,29 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 			expectedLeaveTime:    70,
 		},
 		{
-			name: "Игрок был у боссаи получил событие Cannot continue",
+			name: "Player was with boss and received Cannot continue event",
 			inEvents: []IncomingEvent{
 				{ID: EventRegister, TimeSec: 10},
 				{ID: EventEnterDungeon, TimeSec: 20},
 				{ID: EventKillMonster, TimeSec: 30},
-				{ID: EventKillMonster, TimeSec: 40}, // Зачистил 1 этаж. Время 20с
+				{ID: EventKillMonster, TimeSec: 40}, // Cleared floor 1. Time 20s
 				{ID: EventNextFloor, TimeSec: 50},
 				{ID: EventKillMonster, TimeSec: 60},
-				{ID: EventKillMonster, TimeSec: 70}, // Зачистил 2 этаж. Время 20с
+				{ID: EventKillMonster, TimeSec: 70}, // Cleared floor 2. Time 20s
 				{ID: EventNextFloor, TimeSec: 80},
-				{ID: EventEnterBoss, TimeSec: 90},                           // Время у босса началось
-				{ID: EventCannotContinue, TimeSec: 100, Extra: "Test test"}, // Получает событие "не может продолжать" у босса
+				{ID: EventEnterBoss, TimeSec: 90},                           // Time with boss started
+				{ID: EventCannotContinue, TimeSec: 100, Extra: "Test test"}, // Receives "cannot continue" event with boss
 			},
 			expectedStatus:       StatusDisqual,
 			expectedFloorTimes:   []int{0, 20, 20},
-			expectedBossKillTime: 10, // Время у босса = 100 - 90 = 10
+			expectedBossKillTime: 10, // Time with boss = 100 - 90 = 10
 			expectedLeaveTime:    100,
 		},
 		{
-			name: "Игрок был зарегистрирован, но получил событие Cannot continue до входа в данж",
+			name: "Player was registered but received Cannot continue event before entering dungeon",
 			inEvents: []IncomingEvent{
 				{ID: EventRegister, TimeSec: 10},
-				{ID: EventCannotContinue, TimeSec: 20, Extra: "Test test"}, // Получает событие "не может продолжать" до входа в данж
+				{ID: EventCannotContinue, TimeSec: 20, Extra: "Test test"}, // Receives "cannot continue" event before entering dungeon
 			},
 			expectedStatus:       StatusDisqual,
 			expectedFloorTimes:   []int{0, 0, 0},
@@ -771,33 +771,33 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 				player.MonstersLeft[i] = cfg.Monsters
 			}
 
-			// Прогоняем всю цепочку событий через автомат
+			// Run all events through the state machine
 			for _, event := range tt.inEvents {
 				player.ApplyEvent(event, cfg)
 			}
 
-			// Проверяем финальный статус
+			// Check final status
 			if player.Status != tt.expectedStatus {
-				t.Errorf("Статус: ожидалось %v, получено %v", tt.expectedStatus, player.Status)
+				t.Errorf("Status: expected %v, got %v", tt.expectedStatus, player.Status)
 			}
 
-			// Проверяем массивы времени на этажах
-			// Используем reflect.DeepEqual для быстрого сравнения слайсов
+			// Check time arrays on floors
+			// Use reflect.DeepEqual for fast slice comparison
 			if !reflect.DeepEqual(player.TimeSpentOnFloors, tt.expectedFloorTimes) {
-				// Если массивы пустые (nil), то DeepEqual может ругаться, сделаем проверку длины
+				// If arrays are empty (nil), DeepEqual may complain, check length
 				if len(player.TimeSpentOnFloors) > 0 {
-					t.Errorf("Время на этажах: ожидалось %v, получено %v", tt.expectedFloorTimes, player.TimeSpentOnFloors)
+					t.Errorf("Time on floors: expected %v, got %v", tt.expectedFloorTimes, player.TimeSpentOnFloors)
 				}
 			}
 
-			// Проверяем время убийства босса
+			// Check boss kill time
 			if player.BossKillOrExitTime != tt.expectedBossKillTime {
-				t.Errorf("Время босса: ожидалось %d, получено %d", tt.expectedBossKillTime, player.BossKillOrExitTime)
+				t.Errorf("Boss time: expected %d, got %d", tt.expectedBossKillTime, player.BossKillOrExitTime)
 			}
 
-			// Проверяем зафиксированное время выхода
+			// Check saved exit time
 			if player.LeaveDungeonTime != tt.expectedLeaveTime {
-				t.Errorf("Время выхода: ожидалось %d, получено %d", tt.expectedLeaveTime, player.LeaveDungeonTime)
+				t.Errorf("Exit time: expected %d, got %d", tt.expectedLeaveTime, player.LeaveDungeonTime)
 			}
 		})
 	}

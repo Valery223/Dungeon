@@ -1,28 +1,28 @@
-// Здесь описаны сущности игрока, правила обработки событий и конечный автомат
+// This file describes player entities, event handling rules and the finite state machine
 package domain
 
 import "fmt"
 
-// PlayerStatus - определяет фазу игрока в процессе прохождения данжа
+// PlayerStatus - determines the phase of a player progressing through the dungeon
 type PlayerStatus int
 
-// Возможные состояния игрока (FSM States)
+// Possible player states (FSM States)
 const (
-	StatusNew        PlayerStatus = iota // Игрок еще не зарегистрирован
-	StatusRegistered                     // Зарегистрирован
-	StatusInDungeon                      // В данже
-	StatusSuccess                        // Успешно прошел данж
-	StatusFail                           // Провалился (умер, вышел раньше времени, закончилось время и т.д.)
-	StatusDisqual                        // Дисквалифицирован
+	StatusNew        PlayerStatus = iota // Player not yet registered
+	StatusRegistered                     // Registered
+	StatusInDungeon                      // In dungeon
+	StatusSuccess                        // Successfully cleared dungeon
+	StatusFail                           // Failed (died, left early, time ran out, etc.)
+	StatusDisqual                        // Disqualified
 )
 
-// ActionResult описывает ответ "конечного автомата" на входящее событие
+// ActionResult describes the response of the finite state machine to an incoming event
 type ActionResult struct {
-	IsAccepted    bool           // Указывает, валидно ли действие с точки зрения правил
-	OutgoingEvent *OutgoingEvent // Содержит исходящии события  (31, 32, 33) если они произошли, иначе nil
+	IsAccepted    bool           // Indicates whether the action is valid according to rules
+	OutgoingEvent *OutgoingEvent // Contains outgoing events (31, 32, 33) if they occurred, otherwise nil
 }
 
-// Player храннит данные о текущем прохождении игрока
+// Player stores data about a player's current dungeon run
 type Player struct {
 	ID     int
 	Status PlayerStatus
@@ -31,15 +31,15 @@ type Player struct {
 	CurrentFloor int
 	BossDead     bool
 
-	// Для каждого этажа храним, сколько монстров осталось и зачищен ли этаж
+	// For each floor, we store how many monsters remain and if the floor is cleared
 	MonstersLeft []int
 	FloorCleared []bool
 
-	// Временные метки для расчета времени прохождения
+	// Time stamps for calculating play time
 	EnterDungeonTime int
 	LeaveDungeonTime int
 
-	// Для каждого этажа храним, сколько времени игрок провел на нем
+	// For each floor, we store how much time the player spent on it
 	CurrentFloorEnterTime int
 	TimeSpentOnFloors     []int
 
@@ -47,7 +47,7 @@ type Player struct {
 	BossKillOrExitTime int
 }
 
-// NewPlayer - создние  доменной сущности
+// NewPlayer - creates a domain entity
 func NewPlayer(id int, cfg *DungeonConfig, hp int) *Player {
 	p := &Player{
 		ID:                id,
@@ -64,16 +64,16 @@ func NewPlayer(id int, cfg *DungeonConfig, hp int) *Player {
 	return p
 }
 
-// ApplyEvent применяет событие "e" к состоянию игрока
-// Использует настройки "cfg" для проверки ограничений (количество этажей, время закрытия)
-// Возвращает ActionResult с решением о том, как "автомат" выполнил событие
+// ApplyEvent applies event "e" to the player state
+// Uses settings "cfg" to verify constraints (number of floors, close time)
+// Returns ActionResult with decision on how the "state machine" executed the event
 func (p *Player) ApplyEvent(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	if p.Status == StatusDisqual || p.Status == StatusSuccess || p.Status == StatusFail {
-		// Игнорируем
+		// Ignore
 		return ActionResult{IsAccepted: false}
 	}
 
-	// Если игрок пытается что-то сделать после закрытия данжа, то  мы его принудительно закрываем
+	// If player tries to do something after dungeon closes, we forcefully close it
 	if e.TimeSec >= cfg.CloseAtSec {
 		p.ForceClose(cfg.CloseAtSec, cfg)
 		return ActionResult{IsAccepted: false}
@@ -107,27 +107,27 @@ func (p *Player) ApplyEvent(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	}
 }
 
-// ForceClose принудительно закрывает данж для игрока, переводя его в статус Fail, если он еще не завершил испытание
+// ForceClose forcefully closes the dungeon for a player, changing status to Fail if not already finished
 func (p *Player) ForceClose(closeTimeSec int, cfg *DungeonConfig) {
-	// Если игрок был в данже, то фиксируем время, проведенное на последнем этаже
+	// If player was in dungeon, fix time spent on last floor
 	if p.Status == StatusInDungeon {
 		p.accumulateUnclearedTime(closeTimeSec, cfg)
 		p.LeaveDungeonTime = closeTimeSec
 	}
 
-	// Если игрок еще не завершил испытание, то он проваливается
+	// If player hasn't finished the challenge, they fail
 	if p.Status == StatusInDungeon || p.Status == StatusRegistered || p.Status == StatusNew {
 		p.Status = StatusFail
 	}
 
 }
 
-// Обработчики конкретных состояний
+// Handlers for specific states
 
-// register переводит игрока в статус StatusRegistered
-// Возвращает событие (Impossible Move), если игрок не  в статусе StatusNew.
+// register transitions player to StatusRegistered status
+// Returns an event (Impossible Move) if player is not in StatusNew status.
 func (p *Player) register(e IncomingEvent) ActionResult {
-	// Игрок может зарегистрироваться только если он новый
+	// Player can only register if they are new
 	if p.Status != StatusNew {
 		return p.impossibleMove(e)
 	}
@@ -137,21 +137,21 @@ func (p *Player) register(e IncomingEvent) ActionResult {
 	return ActionResult{IsAccepted: true}
 }
 
-// enterDungeon переводит игрока в статус StatusInDungeon, фиксирует время входа и текущий этаж
-// Использует "cfg" для проверки ограничений (время открытия)
+// enterDungeon transitions player to StatusInDungeon status, fixes entry time and current floor
+// Uses "cfg" to verify constraints (open time)
 func (p *Player) enterDungeon(e IncomingEvent, cfg *DungeonConfig) ActionResult {
-	// Если игрок уже в данже, то он не может войти снова
+	// If player is already in dungeon, they cannot enter again
 	if p.Status == StatusInDungeon {
 		return p.impossibleMove(e)
 	}
 
-	// Игрок может войти в данж только если он зарегистрирован
+	// Player can enter dungeon only if they are registered
 	if p.Status != StatusRegistered {
 		p.Status = StatusDisqual
 		return p.disqualify(e)
 	}
 
-	// Если игрок пытается войти в данж до его открытия, то он дисквалифицируется
+	// If player tries to enter dungeon before it opens, they are disqualified
 	if e.TimeSec < cfg.OpenAtSec {
 		p.Status = StatusDisqual
 		return p.disqualify(e)
@@ -165,17 +165,17 @@ func (p *Player) enterDungeon(e IncomingEvent, cfg *DungeonConfig) ActionResult 
 	return ActionResult{IsAccepted: true}
 }
 
-// killMonster обрабатывает событие убийства монстра
+// killMonster handles the event of killing a monster
 func (p *Player) killMonster(e IncomingEvent, cfg *DungeonConfig) ActionResult {
-	// Проверяем,  что игрок в данже, что это не последний этаж с боссом и что на этаже есть монстры
+	// Check that player is in dungeon, not on last floor with boss, and there are monsters on the floor
 	if p.Status != StatusInDungeon || p.CurrentFloor >= cfg.Floors || p.MonstersLeft[p.CurrentFloor] == 0 {
 		return p.impossibleMove(e)
 	}
 
-	// Убовляем монстра
+	// Remove a monster
 	p.MonstersLeft[p.CurrentFloor]--
 
-	// Если монстров не осталось, то фиксируем время прохождения этажа
+	// If no monsters left, fix time spent on floor
 	if p.MonstersLeft[p.CurrentFloor] == 0 {
 		p.completeCurrentFloor(e.TimeSec, cfg)
 	}
@@ -183,34 +183,34 @@ func (p *Player) killMonster(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	return ActionResult{IsAccepted: true}
 }
 
-// nextFloor обрабатывает событие перехода на следующий этаж
+// nextFloor handles the event of moving to the next floor
 func (p *Player) nextFloor(e IncomingEvent, cfg *DungeonConfig) ActionResult {
-	// Проверяем, что игрок в данже, что это не последний этаж и что комната зачищена
+	// Check that player is in dungeon, that it's not the last floor, and that the room is cleared
 	if p.Status != StatusInDungeon || p.CurrentFloor >= cfg.Floors || !p.FloorCleared[p.CurrentFloor] {
 		return p.impossibleMove(e)
 	}
 
-	// Если игрок пытается подняться на следующий этаж, но комната не зачишена, то фиксируем время, проведенное на этаже
-	// Если в будущем можно будет переходить на следующий этаж, не убив всех монстров
+	// If player tries to move to the next floor, fix time spent on current floor if not yet cleared
+	// In the future, we may allow moving to the next floor without clearing all monsters
 	p.accumulateUnclearedTime(e.TimeSec, cfg)
 
 	p.CurrentFloor++
 	if p.CurrentFloor == cfg.Floors {
-		p.FloorCleared[p.CurrentFloor] = true // На последнем этаже нет монстров, он сразу считается зачищенным
+		p.FloorCleared[p.CurrentFloor] = true // The last floor has no monsters, it is immediately considered cleared
 	}
 	p.CurrentFloorEnterTime = e.TimeSec
 
 	return ActionResult{IsAccepted: true}
 }
 
-// prevFloor обрабатывает событие перехода на предыдущий этаж
+// prevFloor handles the event of moving to the previous floor
 func (p *Player) prevFloor(e IncomingEvent, cfg *DungeonConfig) ActionResult {
-	// Проверяем, что игрок в данже, что это не первый этаж и не комната с боссом
+	// Check that player is in dungeon, that it's not the first floor and not the boss room
 	if p.Status != StatusInDungeon || p.CurrentFloor <= 1 || p.CurrentFloor > cfg.Floors {
 		return p.impossibleMove(e)
 	}
 
-	// Если игрок пытается спуститься на предыдущий этаж, но комната не зачишена, то фиксируем время, проведенное на этаже
+	// If player tries to move to the previous floor, fix time spent on current floor if not yet cleared
 	p.accumulateUnclearedTime(e.TimeSec, cfg)
 
 	p.CurrentFloor--
@@ -219,18 +219,18 @@ func (p *Player) prevFloor(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	return ActionResult{IsAccepted: true}
 }
 
-// enterBoss обрабатывает событие входа в комнату с боссом
+// enterBoss handles the event of entering the boss room
 func (p *Player) enterBoss(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	if p.Status != StatusInDungeon || p.CurrentFloor != cfg.Floors {
 		return p.impossibleMove(e)
 	}
 
-	p.CurrentFloor = cfg.Floors + 1 // Этаж босса
+	p.CurrentFloor = cfg.Floors + 1 // Boss floor
 	p.BossEnterTime = e.TimeSec
 	return ActionResult{IsAccepted: true}
 }
 
-// killBoss обрабатывает событие убийства босса
+// killBoss handles the event of killing the boss
 func (p *Player) killBoss(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	if p.Status != StatusInDungeon || p.CurrentFloor != cfg.Floors+1 || p.BossDead {
 		return p.impossibleMove(e)
@@ -243,19 +243,19 @@ func (p *Player) killBoss(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	return ActionResult{IsAccepted: true}
 }
 
-// leaveDungeon обрабатывает событие выхода из данжа
-// переводит игрока в статус Success или Fail в зависимости от того, зачистил ли он все этажи и убил босса
+// leaveDungeon handles the event of leaving the dungeon
+// transitions player to Success or Fail status depending on whether they cleared all floors and killed the boss
 func (p *Player) leaveDungeon(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	if p.Status != StatusInDungeon {
 		return p.impossibleMove(e)
 	}
 
-	// Если игрок выходит и что-то не зачишено, то фиксируем время незачищенных этажей
+	// If player exits and something is not cleared, fix time for uncleared floors
 	p.accumulateUnclearedTime(e.TimeSec, cfg)
-	// Фиксируем время выхода
+	// Fix exit time
 	p.LeaveDungeonTime = e.TimeSec
 
-	// Проверяем, все ли этажи зачишены и убит ли босс
+	// Check if all floors are cleared and boss is killed
 	allCleared := true
 	for i := 1; i < len(p.FloorCleared); i++ {
 		if !p.FloorCleared[i] {
@@ -265,17 +265,17 @@ func (p *Player) leaveDungeon(e IncomingEvent, cfg *DungeonConfig) ActionResult 
 	}
 
 	if allCleared && p.BossDead {
-		// Если все этажи зачишены и босс убит, то игрок успешно прошел данж
+		// If all floors are cleared and boss is killed, player successfully completed the dungeon
 		p.Status = StatusSuccess
 	} else {
-		// Иначе он провалился
+		// Otherwise they failed
 		p.Status = StatusFail
 	}
 
 	return ActionResult{IsAccepted: true}
 }
 
-// cannotContinue обрабатывает событие, когда игрок не может продолжать
+// cannotContinue handles the event when player cannot continue
 func (p *Player) cannotContinue(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	// time
 	if p.Status == StatusInDungeon {
@@ -293,7 +293,7 @@ func (p *Player) cannotContinue(e IncomingEvent, cfg *DungeonConfig) ActionResul
 	}
 }
 
-// restoreHP обрабатывает событие восстановления HP
+// restoreHP handles the HP restoration event
 func (p *Player) restoreHP(e IncomingEvent) ActionResult {
 	p.HP += e.Value
 	if p.HP > 100 {
@@ -305,8 +305,8 @@ func (p *Player) restoreHP(e IncomingEvent) ActionResult {
 	}
 }
 
-// receiveDamage обрабатывает событие получения урона
-// При смерти переводит игрока в статус Fail и генерирует событие смерти
+// receiveDamage handles the damage reception event
+// On death, transitions player to Fail status and generates death event
 func (p *Player) receiveDamage(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	p.HP -= e.Value
 	if p.HP <= 0 {
@@ -315,10 +315,10 @@ func (p *Player) receiveDamage(e IncomingEvent, cfg *DungeonConfig) ActionResult
 		if p.Status == StatusInDungeon {
 			// time
 			if p.CurrentFloor < cfg.Floors {
-				// Если игрок умер на обычном этаже, то фиксируем время, проведенное на нем
+				// If player died on a regular floor, fix time spent on it
 				p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
 			} else if p.CurrentFloor == cfg.Floors+1 {
-				// Если игрок умер в комнате с боссом, то фиксируем время, проведенное на ней
+				// If player died in the boss room, fix time spent on it
 				p.BossKillOrExitTime = e.TimeSec - p.BossEnterTime
 			}
 		}
@@ -332,9 +332,9 @@ func (p *Player) receiveDamage(e IncomingEvent, cfg *DungeonConfig) ActionResult
 	}
 }
 
-// Вспомогательные методы
+// Helper methods
 
-// disqualify - событие дисквалификации игрока
+// disqualify - player disqualification event
 // outgoing event 31
 func (p *Player) disqualify(e IncomingEvent) ActionResult {
 	return ActionResult{
@@ -342,7 +342,7 @@ func (p *Player) disqualify(e IncomingEvent) ActionResult {
 		OutgoingEvent: p.buildEvent(e, EventOutDisqualified, "")}
 }
 
-// dead - событие смерти игрока
+// dead - player death event
 // outgoing event 32
 func (p *Player) dead(e IncomingEvent) ActionResult {
 	return ActionResult{
@@ -351,7 +351,7 @@ func (p *Player) dead(e IncomingEvent) ActionResult {
 	}
 }
 
-// impossibleMove - событие невозможного действия
+// impossibleMove - impossible action event
 // outgoing event 33
 func (p *Player) impossibleMove(e IncomingEvent) ActionResult {
 	return ActionResult{
@@ -360,8 +360,8 @@ func (p *Player) impossibleMove(e IncomingEvent) ActionResult {
 	}
 }
 
-// buildEvent - вспомогательный метод для генерации исходящего события
-// Создает OutgoingEvent с типом "outID" и опциональным параметром "extra"
+// buildEvent - helper method for generating outgoing event
+// Creates OutgoingEvent with type "outID" and optional parameter "extra"
 func (p *Player) buildEvent(e IncomingEvent, outID EventID, extra string) *OutgoingEvent {
 	return &OutgoingEvent{
 		TimeSec:         e.TimeSec,
@@ -372,22 +372,22 @@ func (p *Player) buildEvent(e IncomingEvent, outID EventID, extra string) *Outgo
 	}
 }
 
-// completeCurrentFloor вызывается когда убит последний монстр или босс
-// Он фиксирует итоговое время и помечает этаж как пройденный
+// completeCurrentFloor is called when the last monster or boss is killed
+// It fixes the final time and marks the floor as cleared
 func (p *Player) completeCurrentFloor(currentTime int, cfg *DungeonConfig) {
 	if p.CurrentFloor == cfg.Floors+1 {
-		// Логика для босса
+		// Boss logic
 		p.BossDead = true
 		p.BossKillOrExitTime += currentTime - p.BossEnterTime
 	} else {
-		// Логика для обычного этажа
+		// Regular floor logic
 		p.FloorCleared[p.CurrentFloor] = true
 		p.TimeSpentOnFloors[p.CurrentFloor] += currentTime - p.CurrentFloorEnterTime
 	}
 }
 
-// accumulateUnclearedTime вызывается при прерывании: смена этажа, выход, смерть,
-// Добавляет прошедшее время в копилку этажа, только если он еще не зачищен
+// accumulateUnclearedTime is called when interrupted: floor change, exit, death
+// Adds elapsed time to the floor's time bank, only if it hasn't been cleared yet
 func (p *Player) accumulateUnclearedTime(currentTime int, cfg *DungeonConfig) {
 	if p.Status != StatusInDungeon {
 		return
@@ -398,14 +398,14 @@ func (p *Player) accumulateUnclearedTime(currentTime int, cfg *DungeonConfig) {
 			p.BossKillOrExitTime += currentTime - p.BossEnterTime
 		}
 	} else {
-		// Добавляем время только если на этаже еще остались монстры
+		// Add time only if monsters still remain on the floor
 		if !p.FloorCleared[p.CurrentFloor] {
 			p.TimeSpentOnFloors[p.CurrentFloor] += currentTime - p.CurrentFloorEnterTime
 		}
 	}
 }
 
-// Публичные методы для расчета итогового отчета
+// Public methods for calculating final report
 func (p *Player) TotalDungeonTime() int {
 	if p.EnterDungeonTime == 0 || p.LeaveDungeonTime == 0 {
 		return 0
@@ -417,8 +417,8 @@ func (p *Player) AvgFloorTime(cfg *DungeonConfig) int {
 	sum := 0
 	clearedCount := 0
 
-	// Считаем только для пройденных этажей
-	// Начинаем с 1, так как этаж 0 - это лобби, а этаж cfg.Floors -эта пустая комната, она в расчет не входит
+	// Count only for cleared floors
+	// Start from 1, as floor 0 is the lobby, and floor cfg.Floors is an empty room, not included in the calculation
 	for i := 1; i < cfg.Floors; i++ {
 		if p.FloorCleared[i] {
 			sum += p.TimeSpentOnFloors[i]
@@ -426,8 +426,8 @@ func (p *Player) AvgFloorTime(cfg *DungeonConfig) int {
 		}
 	}
 
-	// По заданию среднее время можно трактовать по разному
-	// Буду считать, что если игрок не зачистил все этажи, то среднее время 0, так как он не выполнил условие для получения результата
+	// According to the task, average time can be interpreted in different ways
+	// I count that if player didn't clear all floors, average time is 0, as they didn't meet the condition for getting a result
 	if clearedCount != cfg.Floors-1 {
 		return 0
 	}
