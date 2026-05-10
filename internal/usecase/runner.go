@@ -36,11 +36,17 @@ func (r *GameRunner) Run() error {
 		// 3 Выводим результаты
 		// Если действие было принято, то выводим его
 		if result.IsAccepted {
-			r.writer.WriteAccepted(inEvent)
+			err := r.writer.WriteAccepted(inEvent)
+			if err != nil {
+				return err
+			}
 		}
 		// Если есть исходящее событие, то выводим его
 		if result.OutgoingEvent != nil {
-			r.writer.WriteOutgoing(*result.OutgoingEvent)
+			err := r.writer.WriteOutgoing(*result.OutgoingEvent)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
