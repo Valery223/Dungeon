@@ -58,7 +58,11 @@ func parseLineSimple(line string) (domain.IncomingEvent, error) {
 		return event, fmt.Errorf("invalid time format")
 	}
 	timeStr := strings.Trim(parts[0], "[]")
-	event.TimeSec = parseTime(timeStr)
+	var err error
+	event.TimeSec, err = parseTime(timeStr)
+	if err != nil {
+		return event, fmt.Errorf("invalid time format")
+	}
 
 	// 3 Парсим ID игрока и ID события
 	playerID, err1 := strconv.Atoi(parts[1])
@@ -86,8 +90,11 @@ func parseLineSimple(line string) (domain.IncomingEvent, error) {
 }
 
 // parseTime переводит время в секунды
-func parseTime(t string) int {
+func parseTime(t string) (int, error) {
 	var h, m, s int
-	fmt.Sscanf(t, "%d:%d:%d", &h, &m, &s)
-	return h*3600 + m*60 + s
+	_, err := fmt.Sscanf(t, "%d:%d:%d", &h, &m, &s)
+	if err != nil {
+		return 0, fmt.Errorf("invalid time format")
+	}
+	return h*3600 + m*60 + s, nil
 }
