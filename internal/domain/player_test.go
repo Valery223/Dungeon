@@ -29,7 +29,13 @@ func defaultCfg() *DungeonConfig {
 }
 
 // assertActionResult - helper function for checking the results of player actions in tests
-func assertActionResult(t *testing.T, expectedStatus PlayerStatus, expectedRes ActionResult, actualPlayer *Player, actualRes ActionResult) {
+func assertActionResult(
+	t *testing.T,
+	expectedStatus PlayerStatus,
+	expectedRes ActionResult,
+	actualPlayer *Player,
+	actualRes ActionResult,
+) {
 	t.Helper()
 
 	// 1. Check status change
@@ -53,10 +59,18 @@ func assertActionResult(t *testing.T, expectedStatus PlayerStatus, expectedRes A
 			return
 		}
 		if expectedRes.OutgoingEvent.ID != actualRes.OutgoingEvent.ID {
-			t.Errorf("OutgoingEvent ID: expected %v, got %v", expectedRes.OutgoingEvent.ID, actualRes.OutgoingEvent.ID)
+			t.Errorf(
+				"OutgoingEvent ID: expected %v, got %v",
+				expectedRes.OutgoingEvent.ID,
+				actualRes.OutgoingEvent.ID,
+			)
 		}
 		if expectedRes.OutgoingEvent.IncomingEventID != actualRes.OutgoingEvent.IncomingEventID {
-			t.Errorf("OutgoingEvent IncomingEventID: expected %v, got %v", expectedRes.OutgoingEvent.IncomingEventID, actualRes.OutgoingEvent.IncomingEventID)
+			t.Errorf(
+				"OutgoingEvent IncomingEventID: expected %v, got %v",
+				expectedRes.OutgoingEvent.IncomingEventID,
+				actualRes.OutgoingEvent.IncomingEventID,
+			)
 		}
 	}
 }
@@ -623,20 +637,30 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 				// 1 Floor
 				{ID: EventKillMonster, TimeSec: 30},
 				{ID: EventKillMonster, TimeSec: 40}, // Killed last on floor 1. Time: 40-20 = 20
-				{ID: EventNextFloor, TimeSec: 50},   // Moved to floor 2 (CurrentFloorEnterTime = 50)
+				{
+					ID:      EventNextFloor,
+					TimeSec: 50,
+				}, // Moved to floor 2 (CurrentFloorEnterTime = 50)
 
 				// 2 Floor
 				{ID: EventKillMonster, TimeSec: 60},
 				{ID: EventKillMonster, TimeSec: 80}, // Killed last on floor 2. Time: 80-50 = 30
-				{ID: EventNextFloor, TimeSec: 85},   // Moved to floor 3 (CurrentFloorEnterTime = 85)
-				{ID: EventEnterBoss, TimeSec: 90},   // Entered boss room (BossEnterTime = 90)
+				{
+					ID:      EventNextFloor,
+					TimeSec: 85,
+				}, // Moved to floor 3 (CurrentFloorEnterTime = 85)
+				{ID: EventEnterBoss, TimeSec: 90}, // Entered boss room (BossEnterTime = 90)
 
 				// Boss
 				{ID: EventKillBoss, TimeSec: 120},     // Killed boss. Time: 120-90 = 30
 				{ID: EventLeaveDungeon, TimeSec: 130}, // Left
 			},
-			expectedStatus:       StatusSuccess,
-			expectedFloorTimes:   []int{0, 20, 30}, // 0-th index not used, floor 1 = 20s, floor 2 = 30s
+			expectedStatus: StatusSuccess,
+			expectedFloorTimes: []int{
+				0,
+				20,
+				30,
+			}, // 0-th index not used, floor 1 = 20s, floor 2 = 30s
 			expectedBossKillTime: 30,
 			expectedLeaveTime:    130,
 		},
@@ -649,7 +673,11 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 				{ID: EventKillMonster, TimeSec: 40}, // Cleared floor 1. Time 20s
 				{ID: EventNextFloor, TimeSec: 50},
 				{ID: EventKillMonster, TimeSec: 60},
-				{ID: EventReceiveDamage, TimeSec: 70, Value: 100}, // Died. Time on floor 2: 70-50 = 20
+				{
+					ID:      EventReceiveDamage,
+					TimeSec: 70,
+					Value:   100,
+				}, // Died. Time on floor 2: 70-50 = 20
 			},
 			expectedStatus: StatusFail,
 			// Floor 2
@@ -736,8 +764,15 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 				{ID: EventKillMonster, TimeSec: 60},
 				{ID: EventKillMonster, TimeSec: 70}, // Cleared floor 2. Time 20s
 				{ID: EventNextFloor, TimeSec: 80},
-				{ID: EventEnterBoss, TimeSec: 90},                           // Time with boss started
-				{ID: EventCannotContinue, TimeSec: 100, Extra: "Test test"}, // Receives "cannot continue" event with boss
+				{
+					ID:      EventEnterBoss,
+					TimeSec: 90,
+				}, // Time with boss started
+				{
+					ID:      EventCannotContinue,
+					TimeSec: 100,
+					Extra:   "Test test",
+				}, // Receives "cannot continue" event with boss
 			},
 			expectedStatus:       StatusDisqual,
 			expectedFloorTimes:   []int{0, 20, 20},
@@ -748,7 +783,11 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 			name: "Player was registered but received Cannot continue event before entering dungeon",
 			inEvents: []IncomingEvent{
 				{ID: EventRegister, TimeSec: 10},
-				{ID: EventCannotContinue, TimeSec: 20, Extra: "Test test"}, // Receives "cannot continue" event before entering dungeon
+				{
+					ID:      EventCannotContinue,
+					TimeSec: 20,
+					Extra:   "Test test",
+				}, // Receives "cannot continue" event before entering dungeon
 			},
 			expectedStatus:       StatusDisqual,
 			expectedFloorTimes:   []int{0, 0, 0},
@@ -786,18 +825,30 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 			if !reflect.DeepEqual(player.TimeSpentOnFloors, tt.expectedFloorTimes) {
 				// If arrays are empty (nil), DeepEqual may complain, check length
 				if len(player.TimeSpentOnFloors) > 0 {
-					t.Errorf("Time on floors: expected %v, got %v", tt.expectedFloorTimes, player.TimeSpentOnFloors)
+					t.Errorf(
+						"Time on floors: expected %v, got %v",
+						tt.expectedFloorTimes,
+						player.TimeSpentOnFloors,
+					)
 				}
 			}
 
 			// Check boss kill time
 			if player.BossKillOrExitTime != tt.expectedBossKillTime {
-				t.Errorf("Boss time: expected %d, got %d", tt.expectedBossKillTime, player.BossKillOrExitTime)
+				t.Errorf(
+					"Boss time: expected %d, got %d",
+					tt.expectedBossKillTime,
+					player.BossKillOrExitTime,
+				)
 			}
 
 			// Check saved exit time
 			if player.LeaveDungeonTime != tt.expectedLeaveTime {
-				t.Errorf("Exit time: expected %d, got %d", tt.expectedLeaveTime, player.LeaveDungeonTime)
+				t.Errorf(
+					"Exit time: expected %d, got %d",
+					tt.expectedLeaveTime,
+					player.LeaveDungeonTime,
+				)
 			}
 		})
 	}

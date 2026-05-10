@@ -165,7 +165,8 @@ func (p *Player) enterDungeon(e IncomingEvent, cfg *DungeonConfig) ActionResult 
 // killMonster handles the event of killing a monster
 func (p *Player) killMonster(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	// Check that player is in dungeon, not on last floor with boss, and there are monsters on the floor
-	if p.Status != StatusInDungeon || p.CurrentFloor >= cfg.Floors || p.MonstersLeft[p.CurrentFloor] == 0 {
+	if p.Status != StatusInDungeon || p.CurrentFloor >= cfg.Floors ||
+		p.MonstersLeft[p.CurrentFloor] == 0 {
 		return p.impossibleMove(e)
 	}
 
@@ -183,7 +184,8 @@ func (p *Player) killMonster(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 // nextFloor handles the event of moving to the next floor
 func (p *Player) nextFloor(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	// Check that player is in dungeon, that it's not the last floor, and that the room is cleared
-	if p.Status != StatusInDungeon || p.CurrentFloor >= cfg.Floors || !p.FloorCleared[p.CurrentFloor] {
+	if p.Status != StatusInDungeon || p.CurrentFloor >= cfg.Floors ||
+		!p.FloorCleared[p.CurrentFloor] {
 		return p.impossibleMove(e)
 	}
 

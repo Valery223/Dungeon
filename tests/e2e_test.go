@@ -386,7 +386,12 @@ Final report:
 		expectedClean := strings.TrimSpace(expectedOutput)
 
 		if actualOutput != expectedClean {
-			t.Errorf("Test '%s' failed. Output mismatch.\nExpected:\n%s\nGot:\n%s", tt.name, expectedClean, actualOutput)
+			t.Errorf(
+				"Test '%s' failed. Output mismatch.\nExpected:\n%s\nGot:\n%s",
+				tt.name,
+				expectedClean,
+				actualOutput,
+			)
 		}
 	}
 }
@@ -515,7 +520,12 @@ Final report:
 		expectedClean := strings.TrimSpace(expectedOutput)
 
 		if actualOutput != expectedClean {
-			t.Errorf("Test '%s' failed. Output mismatch.\nExpected:\n%s\nGot:\n%s", tt.name, expectedClean, actualOutput)
+			t.Errorf(
+				"Test '%s' failed. Output mismatch.\nExpected:\n%s\nGot:\n%s",
+				tt.name,
+				expectedClean,
+				actualOutput,
+			)
 		}
 	}
 }
@@ -643,7 +653,12 @@ Final report:
 		expectedClean := strings.TrimSpace(expectedOutput)
 
 		if actualOutput != expectedClean {
-			t.Errorf("Test '%s' failed. Output mismatch.\nExpected:\n%s\nGot:\n%s", tt.name, expectedClean, actualOutput)
+			t.Errorf(
+				"Test '%s' failed. Output mismatch.\nExpected:\n%s\nGot:\n%s",
+				tt.name,
+				expectedClean,
+				actualOutput,
+			)
 		}
 	}
 }
