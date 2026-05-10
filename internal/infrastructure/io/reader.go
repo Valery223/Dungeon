@@ -54,6 +54,9 @@ func parseLineSimple(line string) (domain.IncomingEvent, error) {
 	}
 
 	// 2 Парсим время "[14:49:02]"
+	if !strings.HasPrefix(parts[0], "[") || !strings.HasSuffix(parts[0], "]") {
+		return event, fmt.Errorf("invalid time format")
+	}
 	timeStr := strings.Trim(parts[0], "[]")
 	event.TimeSec = parseTime(timeStr)
 
