@@ -74,13 +74,17 @@ make docker-run CONFIG=my_cfg.json EVENTS=my_events
 ```
 
 ## 🧪 Testing
-The system is covered by both Unit Tests (Domain logic) and E2E Tests.
+The system is covered by Unit Tests (Domain logic), E2E Tests, and Performance/Load Tests. 
 
 ```bash
-# Run all tests with race detector
-make test
-```
-``` bash
-# Run E2E Tests
+# Run Unit tests with race detector (skips heavy load tests)
+make unit-test
+
+# Run E2E Tests (verifies integration and final output)
 make e2e
-```
+
+# Run all standard tests
+make test
+
+# Run Load test (generates and processes 1,000,000+ events)
+make load-test
