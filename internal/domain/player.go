@@ -416,7 +416,8 @@ func (p *Player) AvgFloorTime(cfg *DungeonConfig) int {
 	clearedCount := 0
 
 	// Считаем только для пройденных этажей
-	for i := 1; i <= cfg.Floors; i++ {
+	// Начинаем с 1, так как этаж 0 - это лобби, а этаж cfg.Floors -эта пустая комната, она в расчет не входит
+	for i := 1; i < cfg.Floors; i++ {
 		if p.FloorCleared[i] {
 			sum += p.TimeSpentOnFloors[i]
 			clearedCount++
@@ -425,7 +426,7 @@ func (p *Player) AvgFloorTime(cfg *DungeonConfig) int {
 
 	// По заданию среднее время можно трактовать по разному
 	// Буду считать, что если игрок не зачистил все этажи, то среднее время 0, так как он не выполнил условие для получения результата
-	if clearedCount != cfg.Floors {
+	if clearedCount != cfg.Floors-1 {
 		return 0
 	}
 
