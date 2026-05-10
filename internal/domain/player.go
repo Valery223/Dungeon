@@ -95,13 +95,13 @@ func (p *Player) ApplyEvent(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	case EventKillBoss:
 		return p.killBoss(e, cfg)
 	case EventLeaveDungeon:
-		return p.leaveDungeon(e, cfg)
+		return p.leaveDungeon(e)
 	case EventCannotContinue:
-		return p.cannotContinue(e, cfg)
+		return p.cannotContinue(e)
 	case EventRestoreHP:
 		return p.restoreHP(e)
 	case EventReceiveDamage:
-		return p.receiveDamage(e, cfg)
+		return p.receiveDamage(e)
 	default:
 		return p.impossibleMove(e)
 	}
@@ -109,14 +109,11 @@ func (p *Player) ApplyEvent(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 
 // ForceClose forcefully closes the dungeon for a player, changing status to Fail if not already finished
 func (p *Player) ForceClose(closeTimeSec int, cfg *DungeonConfig) {
-	// If player was in dungeon, fix time spent on last floor
-	if p.Status == StatusInDungeon {
-		p.accumulateUnclearedTime(closeTimeSec, cfg)
+	switch p.Status {
+	case StatusInDungeon:
 		p.LeaveDungeonTime = closeTimeSec
-	}
-
-	// If player hasn't finished the challenge, they fail
-	if p.Status == StatusInDungeon || p.Status == StatusRegistered || p.Status == StatusNew {
+		p.Status = StatusFail
+	case StatusRegistered, StatusNew:
 		p.Status = StatusFail
 	}
 
@@ -190,14 +187,12 @@ func (p *Player) nextFloor(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 		return p.impossibleMove(e)
 	}
 
-	// If player tries to move to the next floor, fix time spent on current floor if not yet cleared
-	// In the future, we may allow moving to the next floor without clearing all monsters
-	p.accumulateUnclearedTime(e.TimeSec, cfg)
-
 	p.CurrentFloor++
+
 	if p.CurrentFloor == cfg.Floors {
 		p.FloorCleared[p.CurrentFloor] = true // The last floor has no monsters, it is immediately considered cleared
 	}
+
 	p.CurrentFloorEnterTime = e.TimeSec
 
 	return ActionResult{IsAccepted: true}
@@ -211,7 +206,9 @@ func (p *Player) prevFloor(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	}
 
 	// If player tries to move to the previous floor, fix time spent on current floor if not yet cleared
-	p.accumulateUnclearedTime(e.TimeSec, cfg)
+	if !p.FloorCleared[p.CurrentFloor] {
+		p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
+	}
 
 	p.CurrentFloor--
 	p.CurrentFloorEnterTime = e.TimeSec
@@ -245,14 +242,11 @@ func (p *Player) killBoss(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 
 // leaveDungeon handles the event of leaving the dungeon
 // transitions player to Success or Fail status depending on whether they cleared all floors and killed the boss
-func (p *Player) leaveDungeon(e IncomingEvent, cfg *DungeonConfig) ActionResult {
+func (p *Player) leaveDungeon(e IncomingEvent) ActionResult {
 	if p.Status != StatusInDungeon {
 		return p.impossibleMove(e)
 	}
 
-	// If player exits and something is not cleared, fix time for uncleared floors
-	p.accumulateUnclearedTime(e.TimeSec, cfg)
-	// Fix exit time
 	p.LeaveDungeonTime = e.TimeSec
 
 	// Check if all floors are cleared and boss is killed
@@ -276,17 +270,13 @@ func (p *Player) leaveDungeon(e IncomingEvent, cfg *DungeonConfig) ActionResult 
 }
 
 // cannotContinue handles the event when player cannot continue
-func (p *Player) cannotContinue(e IncomingEvent, cfg *DungeonConfig) ActionResult {
+func (p *Player) cannotContinue(e IncomingEvent) ActionResult {
 	// time
 	if p.Status == StatusInDungeon {
-		if p.CurrentFloor < cfg.Floors && !p.FloorCleared[p.CurrentFloor] {
-			p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
-		} else if p.CurrentFloor == cfg.Floors+1 && !p.BossDead {
-			p.BossKillOrExitTime = e.TimeSec - p.BossEnterTime
-		}
 		p.LeaveDungeonTime = e.TimeSec
 	}
 	p.Status = StatusDisqual
+
 	return ActionResult{
 		IsAccepted:    true,
 		OutgoingEvent: p.buildEvent(e, EventOutDisqualified, e.Extra),
@@ -307,23 +297,16 @@ func (p *Player) restoreHP(e IncomingEvent) ActionResult {
 
 // receiveDamage handles the damage reception event
 // On death, transitions player to Fail status and generates death event
-func (p *Player) receiveDamage(e IncomingEvent, cfg *DungeonConfig) ActionResult {
+func (p *Player) receiveDamage(e IncomingEvent) ActionResult {
 	p.HP -= e.Value
 	if p.HP <= 0 {
 		p.HP = 0
 
 		if p.Status == StatusInDungeon {
-			// time
-			if p.CurrentFloor < cfg.Floors {
-				// If player died on a regular floor, fix time spent on it
-				p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
-			} else if p.CurrentFloor == cfg.Floors+1 {
-				// If player died in the boss room, fix time spent on it
-				p.BossKillOrExitTime = e.TimeSec - p.BossEnterTime
-			}
+			p.LeaveDungeonTime = e.TimeSec
 		}
 		p.Status = StatusFail
-		p.LeaveDungeonTime = e.TimeSec
+
 		return p.dead(e)
 	}
 
@@ -383,25 +366,6 @@ func (p *Player) completeCurrentFloor(currentTime int, cfg *DungeonConfig) {
 		// Regular floor logic
 		p.FloorCleared[p.CurrentFloor] = true
 		p.TimeSpentOnFloors[p.CurrentFloor] += currentTime - p.CurrentFloorEnterTime
-	}
-}
-
-// accumulateUnclearedTime is called when interrupted: floor change, exit, death
-// Adds elapsed time to the floor's time bank, only if it hasn't been cleared yet
-func (p *Player) accumulateUnclearedTime(currentTime int, cfg *DungeonConfig) {
-	if p.Status != StatusInDungeon {
-		return
-	}
-
-	if p.CurrentFloor == cfg.Floors+1 {
-		if !p.BossDead {
-			p.BossKillOrExitTime += currentTime - p.BossEnterTime
-		}
-	} else {
-		// Add time only if monsters still remain on the floor
-		if !p.FloorCleared[p.CurrentFloor] {
-			p.TimeSpentOnFloors[p.CurrentFloor] += currentTime - p.CurrentFloorEnterTime
-		}
 	}
 }
 

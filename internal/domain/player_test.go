@@ -653,7 +653,7 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 			},
 			expectedStatus: StatusFail,
 			// Floor 2
-			expectedFloorTimes:   []int{0, 20, 20},
+			expectedFloorTimes:   []int{0, 20, 0},
 			expectedBossKillTime: 0,
 			expectedLeaveTime:    70, // Death time = exit time
 		},
@@ -670,7 +670,7 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 				{ID: EventKillMonster, TimeSec: 1050},
 			},
 			expectedStatus:       StatusFail,
-			expectedFloorTimes:   []int{0, 20, 1010 - 50}, // Nothing cleared
+			expectedFloorTimes:   []int{0, 20, 0},
 			expectedBossKillTime: 0,
 			expectedLeaveTime:    1010,
 		},
@@ -682,7 +682,7 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 				{ID: EventLeaveDungeon, TimeSec: 40},
 			},
 			expectedStatus:       StatusFail,
-			expectedFloorTimes:   []int{0, 20, 0},
+			expectedFloorTimes:   []int{0, 0, 0},
 			expectedBossKillTime: 0,
 			expectedLeaveTime:    40,
 		},
@@ -694,7 +694,7 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 				{ID: EventCannotContinue, TimeSec: 30, Extra: "Test test"},
 			},
 			expectedStatus:       StatusDisqual,
-			expectedFloorTimes:   []int{0, 10, 0},
+			expectedFloorTimes:   []int{0, 0, 0},
 			expectedBossKillTime: 0,
 			expectedLeaveTime:    30,
 		},
@@ -741,7 +741,7 @@ func TestPlayer_TimeMetrics(t *testing.T) {
 			},
 			expectedStatus:       StatusDisqual,
 			expectedFloorTimes:   []int{0, 20, 20},
-			expectedBossKillTime: 10, // Time with boss = 100 - 90 = 10
+			expectedBossKillTime: 0, // Time with boss = 100 - 90 = 10
 			expectedLeaveTime:    100,
 		},
 		{
