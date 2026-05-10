@@ -38,7 +38,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to open events file: %v", err)
 	}
-	defer eventsFile.Close()
+	defer func() {
+		if err := eventsFile.Close(); err != nil {
+			log.Printf("Failed to close events file: %v", err)
+		}
+	}()
 
 	// 4 Инициализация слоев инфраструктуры и приложения
 	reader := io.NewStreamReader(eventsFile)
