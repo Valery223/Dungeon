@@ -157,8 +157,7 @@ func (p *Player) killMonster(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 
 	// Если монстров не осталось, то фиксируем время прохождения этажа
 	if p.MonstersLeft[p.CurrentFloor] == 0 {
-		p.FloorCleared[p.CurrentFloor] = true
-		p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
+		p.completeCurrentFloor(e.TimeSec, cfg)
 	}
 
 	return ActionResult{IsAccepted: true}
@@ -172,17 +171,15 @@ func (p *Player) nextFloor(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	}
 
 	// Если игрок пытается подняться на следующий этаж, но комната не зачишена, то фиксируем время, проведенное на этаже
-	// В зависимости от задания, пока убрал(не может уйти, пока не убьет всех монстров)
-	// if !p.FloorCleared[p.CurrentFloor] {
-	// 	p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
-	// }
+	// Если в будущем можно будет переходить на следующий этаж, не убив всех монстров
+	p.accumulateUnclearedTime(e.TimeSec, cfg)
 
 	p.CurrentFloor++
 	if p.CurrentFloor == cfg.Floors {
 		p.FloorCleared[p.CurrentFloor] = true // На последнем этаже нет монстров, он сразу считается зачищенным
-	} else {
-		p.CurrentFloorEnterTime = e.TimeSec
 	}
+	p.CurrentFloorEnterTime = e.TimeSec
+
 	return ActionResult{IsAccepted: true}
 }
 
@@ -194,12 +191,11 @@ func (p *Player) prevFloor(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	}
 
 	// Если игрок пытается спуститься на предыдущий этаж, но комната не зачишена, то фиксируем время, проведенное на этаже
-	if !p.FloorCleared[p.CurrentFloor] {
-		p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
-	}
+	p.accumulateUnclearedTime(e.TimeSec, cfg)
 
 	p.CurrentFloor--
 	p.CurrentFloorEnterTime = e.TimeSec
+
 	return ActionResult{IsAccepted: true}
 }
 
@@ -221,7 +217,9 @@ func (p *Player) killBoss(e IncomingEvent, cfg *DungeonConfig) ActionResult {
 	}
 
 	p.BossDead = true
-	p.BossKillOrExitTime = e.TimeSec - p.BossEnterTime
+
+	p.completeCurrentFloor(e.TimeSec, cfg)
+
 	return ActionResult{IsAccepted: true}
 }
 
@@ -232,7 +230,12 @@ func (p *Player) leaveDungeon(e IncomingEvent, cfg *DungeonConfig) ActionResult 
 		return p.impossibleMove(e)
 	}
 
+	// Если игрок выходит и что-то не зачишено, то фиксируем время незачищенных этажей
+	p.accumulateUnclearedTime(e.TimeSec, cfg)
+	// Фиксируем время выхода
 	p.LeaveDungeonTime = e.TimeSec
+
+	// Проверяем, все ли этажи зачишены и убит ли босс
 	allCleared := true
 	for i := 1; i < len(p.FloorCleared); i++ {
 		if !p.FloorCleared[i] {
@@ -242,17 +245,13 @@ func (p *Player) leaveDungeon(e IncomingEvent, cfg *DungeonConfig) ActionResult 
 	}
 
 	if allCleared && p.BossDead {
+		// Если все этажи зачишены и босс убит, то игрок успешно прошел данж
 		p.Status = StatusSuccess
 	} else {
+		// Иначе он провалился
 		p.Status = StatusFail
 	}
 
-	// Time for metrics
-	if p.CurrentFloor < cfg.Floors && !p.FloorCleared[p.CurrentFloor] {
-		p.TimeSpentOnFloors[p.CurrentFloor] += e.TimeSec - p.CurrentFloorEnterTime
-	} else if p.CurrentFloor == cfg.Floors+1 && !p.BossDead {
-		p.BossKillOrExitTime = e.TimeSec - p.BossEnterTime
-	}
 	return ActionResult{IsAccepted: true}
 }
 
@@ -348,5 +347,38 @@ func (p *Player) buildEvent(e IncomingEvent, outID EventID, extra string) *Outgo
 		ID:              outID,
 		IncomingEventID: e.ID,
 		ExtraParam:      extra,
+	}
+}
+
+// completeCurrentFloor вызывается когда убит последний монстр или босс
+// Он фиксирует итоговое время и помечает этаж как пройденный
+func (p *Player) completeCurrentFloor(currentTime int, cfg *DungeonConfig) {
+	if p.CurrentFloor == cfg.Floors+1 {
+		// Логика для босса
+		p.BossDead = true
+		p.BossKillOrExitTime += currentTime - p.BossEnterTime
+	} else {
+		// Логика для обычного этажа
+		p.FloorCleared[p.CurrentFloor] = true
+		p.TimeSpentOnFloors[p.CurrentFloor] += currentTime - p.CurrentFloorEnterTime
+	}
+}
+
+// accumulateUnclearedTime вызывается при прерывании: смена этажа, выход, смерть,
+// Добавляет прошедшее время в копилку этажа, только если он еще не зачищен
+func (p *Player) accumulateUnclearedTime(currentTime int, cfg *DungeonConfig) {
+	if p.Status != StatusInDungeon {
+		return
+	}
+
+	if p.CurrentFloor == cfg.Floors+1 {
+		if !p.BossDead {
+			p.BossKillOrExitTime += currentTime - p.BossEnterTime
+		}
+	} else {
+		// Добавляем время только если на этаже еще остались монстры
+		if !p.FloorCleared[p.CurrentFloor] {
+			p.TimeSpentOnFloors[p.CurrentFloor] += currentTime - p.CurrentFloorEnterTime
+		}
 	}
 }
