@@ -1,4 +1,4 @@
-package infrastructure
+package memory
 
 import "github.com/Valery223/Dungeon/internal/domain"
 
