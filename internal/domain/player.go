@@ -54,7 +54,7 @@ func NewPlayer(id int, cfg *DungeonConfig, hp int) *Player {
 		Status:            StatusNew,
 		HP:                hp,
 		MonstersLeft:      make([]int, cfg.Floors+2),
-		FloorCleared:      make([]bool, cfg.Floors+2),
+		FloorCleared:      make([]bool, cfg.Floors+1),
 		TimeSpentOnFloors: make([]int, cfg.Floors+2),
 	}
 
@@ -401,4 +401,43 @@ func (p *Player) accumulateUnclearedTime(currentTime int, cfg *DungeonConfig) {
 			p.TimeSpentOnFloors[p.CurrentFloor] += currentTime - p.CurrentFloorEnterTime
 		}
 	}
+}
+
+// Публичные методы для расчета итогового отчета
+func (p *Player) TotalDungeonTime() int {
+	if p.EnterDungeonTime == 0 || p.LeaveDungeonTime == 0 {
+		return 0
+	}
+	return p.LeaveDungeonTime - p.EnterDungeonTime
+}
+
+func (p *Player) AvgFloorTime(cfg *DungeonConfig) int {
+	sum := 0
+	clearedCount := 0
+
+	// Считаем только для пройденных этажей
+	for i := 1; i <= cfg.Floors; i++ {
+		if p.FloorCleared[i] {
+			sum += p.TimeSpentOnFloors[i]
+			clearedCount++
+		}
+	}
+
+	// По заданию среднее время можно трактовать по разному
+	// Буду считать, что если игрок не зачистил все этажи, то среднее время 0, так как он не выполнил условие для получения результата
+	if clearedCount != cfg.Floors {
+		return 0
+	}
+
+	if clearedCount > 0 {
+		return sum / clearedCount
+	}
+	return 0
+}
+
+func (p *Player) FinalBossTime() int {
+	if p.BossDead {
+		return p.BossKillOrExitTime
+	}
+	return 0
 }
