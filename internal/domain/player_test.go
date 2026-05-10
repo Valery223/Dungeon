@@ -69,6 +69,7 @@ func assertActionResult(t *testing.T, expectedStatus PlayerStatus, expectedRes A
 //   - Fail - если получает событие, когда время вышло
 //   - Fail - если получает смертельный урон(генерируем событие смерти)
 //   - New - если получает урон, но не умирает
+//   - New - если игрок восстанавливает HP
 //   - New - при всех остальных событиях, так же  отдаем событие  imposible move
 func TestPlayer_StateNew(t *testing.T) {
 
@@ -182,6 +183,7 @@ func TestPlayer_StateNew(t *testing.T) {
 //   - Fail - если получает событие, когда время вышло
 //   - Fail - если получает смертельный урон(генерируем событие смерти)
 //   - Registered - если получает урон, но не умирает
+//   - Registered - если игрок восстанавливает HP
 //   - Registered - при всех остальных событиях, так же  отдаем событие  imposible move
 func TestPlayer_StateRegistered(t *testing.T) {
 
