@@ -24,11 +24,11 @@ func NewStreamReader(r io.Reader) *StreamReader {
 
 // Read читает следующее событие из потока, возвращает io.EOF при завершении
 func (r *StreamReader) Read() (domain.IncomingEvent, error) {
-	if r.scanner.Scan() {
+	for r.scanner.Scan() {
 		line := strings.TrimSpace(r.scanner.Text())
-		// if line == "" {
-		// 	continue // Пропускаем пустые строки
-		// }
+		if line == "" {
+			continue // Пропускаем пустые строки
+		}
 
 		event, err := parseLineSimple(line)
 		if err != nil {
